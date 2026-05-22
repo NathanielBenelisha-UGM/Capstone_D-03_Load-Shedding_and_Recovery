@@ -24,16 +24,16 @@ graph TD
         W[Web HMI - Dashboard]
     end
 
-    B -->|Tulis Beban Aktual| M
-    G -->|Tulis Output Daya & Frekuensi| M
-    M -.->|Baca Target Beban & Perintah Trip| B
-    M -.->|Baca Status Breaker| G
+    B -- Tulis Beban Aktual --> M
+    G -- Tulis Output Daya & Frekuensi --> M
+    M -. Baca Target Beban & Perintah Trip .-> B
+    M -. Baca Status Breaker .-> G
 
-    M ==>|Polling 10 FPS| S
-    S ==>|Write Trip Commands (UFLS)| M
+    M == Polling 10 FPS ==> S
+    S == Write Trip Commands (UFLS) ==> M
     
-    S -->|Socket.io Telemetry (10 FPS)| W
-    W -->|Control Override & Breaker Trip| S
+    S -- Socket.io Telemetry (10 FPS) --> W
+    W -- Control Override & Breaker Trip --> S
 ```
 
 ---
