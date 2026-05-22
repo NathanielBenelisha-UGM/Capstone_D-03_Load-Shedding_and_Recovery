@@ -1,12 +1,17 @@
-# ⚡ SCADA Grid Simulator & Dynamic Load Shedding: Comprehensive Technical Documentation
+# ⚡ Simulasi Digital Twin SCADA Grid & Dynamic Load Shedding
 
-Proyek ini adalah simulasi *Real-Time Digital Twin* berskala industri untuk Sistem Tenaga Listrik, yang mensimulasikan dinamika frekuensi transien, *Governor Droop Control*, hingga optimasi pelepasan beban (*Under-Frequency Load Shedding / UFLS*) menggunakan algoritma *Mixed-Integer Linear Programming* (MILP). Sistem berjalan pada resolusi sangat tinggi (100 ms / 10 FPS) untuk memodelkan kelakuan kelistrikan asli secara *real-time*.
+## Abstrak
+Proyek ini mengusung pengembangan *Real-Time Digital Twin* berskala industri untuk Sistem Tenaga Listrik. Sistem ini dirancang untuk mensimulasikan dinamika frekuensi transien, respons kontrol primer (*Governor Droop Control*), dan melakukan optimasi pelepasan beban (*Under-Frequency Load Shedding* / UFLS) berbasis algoritma optimasi *Mixed-Integer Linear Programming* (MILP). Dengan resolusi eksekusi sebesar 100 ms (10 FPS), simulasi ini memodelkan kinetika energi jaringan secara *real-time* dan interaktif.
 
 ---
 
-## 🏛️ 1. Arsitektur Komunikasi Sistem (System Schema)
+## 1. Pendahuluan
+Stabilitas frekuensi pada sistem tenaga listrik sangat bergantung pada keseimbangan antara pembangkitan daya aktif dan beban. Gangguan atau hilangnya unit pembangkit secara tiba-tiba dapat menyebabkan defisit daya yang memicu penurunan frekuensi sistem (*frequency drop*). Jika tidak diatasi dengan mekanisme pelepasan beban yang tepat dan proporsional, sistem akan mengalami *blackout* atau mati listrik total. Proyek ini mendemonstrasikan secara interaktif penyelesaian masalah tersebut melalui implementasi komputasi komprehensif mulai dari *physics engine* hingga algoritma cerdas berbasis optimasi matematis.
 
-Keseluruhan ekosistem terdistribusi ke dalam tiga layer utama yang direkatkan oleh protokol komunikasi **Modbus TCP/IP**.
+---
+
+## 2. Arsitektur Komunikasi Sistem
+Sistem ini menggunakan arsitektur terdistribusi yang dibagi ke dalam tiga lapisan (layer) yang berkomunikasi menggunakan protokol standar industri, yaitu **Modbus TCP/IP**.
 
 ```mermaid
 graph TD
@@ -38,96 +43,101 @@ graph TD
 
 ---
 
-## ⚙️ 2. Physics Engine: Simulasi Kinetika Frekuensi (`load.py`)
+## 3. Pemodelan Matematis dan Fisika (*Physics Engine*)
+Modul `load.py` bertindak sebagai mesin fisika diferensial yang merepresentasikan perilaku putaran rotor sinkron berdasarkan prinsip kekekalan energi kinetik turbin-generator.
 
-Bagian ini bukan sekadar animasi rasio, melainkan mesin fisika *differential equations* yang memodelkan putaran rotor sinkron di dunia nyata.
+### 3.1 Persamaan Ayunan (*The Swing Equation*) dan *Rate of Change of Frequency* (RoCoF)
+Dinamika transien frekuensi dimodelkan menggunakan persamaan ayunan. Saat terjadi *Network Deficit* (Total Beban > Total Pembangkitan), energi kinetik yang tersimpan di dalam rotor akan terlepas untuk menutupi defisit, menyebabkan deselerasi rotasi (penurunan frekuensi). 
 
-### A. Persamaan Ayunan (The Swing Equation)
-Akar dari stabilitas grid adalah kekekalan energi kinetik turbin. Jika terdapat *Network Deficit* (Beban > Generator), energi kinetik turbin akan tersedot untuk menutupi defisit, menyebabkan putaran rotor (frekuensi) melambat.
-
-Secara matematis, sistem menghitung **RoCoF** (*Rate of Change of Frequency* atau $df/dt$) menggunakan modifikasi *Swing Equation*:
+Laju perubahan frekuensi (RoCoF atau $df/dt$) dihitung dengan persamaan:
 
 $$ \frac{df}{dt} = \frac{f_{nom}}{2 \cdot H_{eff}} \times (\Delta P_{pu} - P_{damping}) $$
 
-**Penjelasan Variabel:**
-*   **$f_{nom}$**: Frekuensi nominal sistem (50.0 Hz).
-*   **$\Delta P_{pu}$**: *Network Deficit* (Total Generator - Total Beban) dibagi daya dasar (S_Base = 200 MVA). Jika generator kurang, nilai ini negatif.
-*   **$H_{eff}$** (*Effective Inertia*): Total momentum inersia jaringan. Dihitung dengan mengalikan konstanta inersia tiap generator (PLTA H=5, PLTGU H=3, PLTS/PLTB H=0.5) dengan proporsi outputnya. Semakin besar $H_{eff}$, semakin tahan grid terhadap *shock* jatuhnya frekuensi.
-*   **$P_{damping}$**: *Load Damping Factor*. Di dunia nyata, saat frekuensi turun, motor induksi di pabrik akan melambat sehingga menyerap daya lebih sedikit. Ini dimodelkan sebagai $D \times \frac{(f - f_{nom})}{f_{nom}}$ yang otomatis membantu mengerem laju jatuhnya frekuensi.
+**Dimana:**
+*   **$f_{nom}$**: Frekuensi nominal operasional grid (50.0 Hz).
+*   **$\Delta P_{pu}$**: *Network Deficit* dalam per unit (pu). Diformulasikan dari selisih $(P_{Gen} - P_{Load})$ dibagi dengan daya dasar sistem ($S_{Base}$). Nilai negatif mengindikasikan bahwa sistem kekurangan pasokan daya.
+*   **$H_{eff}$**: Konstanta Inersia Efektif (*Effective Inertia*, dalam detik). Merepresentasikan total momentum inersia jaringan berputar, dihitung secara proporsional dari setiap generator yang *online* (misal: PLTA $H=5$, PLTGU $H=3$, PLTS/B $H=0.5$).
+*   **$P_{damping}$**: *Load Damping Factor*. Merepresentasikan respons alamiah beban (seperti motor induksi) yang menurunkan konsumsi daya saat frekuensi turun. Didefinisikan sebagai $P_{damping} = D \times \frac{f - f_{nom}}{f_{nom}}$.
 
-Setelah RoCoF didapatkan, frekuensi untuk frame (detik) berikutnya didapatkan melalui integrasi Euler:
-$$ f_{new} = f_{old} + \left( \frac{df}{dt} \times \Delta t \right) $$
+Nilai frekuensi pada langkah waktu (time-step) berikutnya dihitung secara numerik menggunakan metode integrasi Euler:
 
-### B. Primary Control: Governor Droop
-Saat frekuensi turun, katup uap/air pada turbin secara otomatis membuka lebih lebar untuk menambah daya. Ini disebut *Droop Control*:
-$$ \Delta P_{target} = -\left( \frac{f - 50.0}{50.0} \right) \times \frac{1}{\text{Droop}} \times P_{Rated} $$
+$$ f_{t+\Delta t} = f_t + \left( \frac{df}{dt} \times \Delta t \right) $$
 
-### C. Secondary Control: Automatic Generation Control (AGC)
-Droop control akan menahan frekuensi agar tidak terus jatuh, tetapi ia akan tertahan/stabil di angka di bawah 50 Hz (misal 49.8 Hz). AGC bertugas menggeser target pelan-pelan untuk mengembalikan frekuensi tepat ke **50.0 Hz** dengan membaca sisa cadangan berputar (*Spinning Reserve*).
+### 3.2 Kontrol Primer: *Governor Droop Control*
+Sebagai respons terhadap deviasi frekuensi, sistem kontrol *governor* akan otomatis membuka atau menutup katup mekanis untuk mengatur daya mekanik (*Mechanical Power*). Karakteristik *droop* dirumuskan sebagai:
 
-### D. Generator Trip (Transient Drop)
-Jika user mematikan generator dari HMI, output generator tersebut akan **instan di-set ke 0 MW** (mengabaikan *Ramp-Rate* normal). Hal ini memicu *Network Deficit* instan yang sangat besar, membanting nilai $\Delta P_{pu}$ ke dasar laut, dan memicu *deep-dip* frekuensi yang curam.
+$$ \Delta P_{target} = -\left( \frac{f - f_{nom}}{f_{nom}} \right) \times \frac{1}{R} \times P_{Rated} $$
+
+**Dimana:**
+*   $R$: *Droop setting* (biasanya dalam rentang 4-5%).
+*   $P_{Rated}$: Kapasitas daya maksimum generator.
+
+### 3.3 Kontrol Sekunder: *Automatic Generation Control* (AGC)
+Meskipun kontrol primer menstabilkan penurunan, frekuensi akan menetap pada kondisi tunak (*steady-state error*) yang berbeda dari $f_{nom}$. AGC berfungsi untuk memberikan *setpoint* daya tambahan secara perlahan (memanfaatkan *Spinning Reserve*) agar frekuensi kembali ke batas eksak **50.0 Hz**.
 
 ---
 
-## 🧠 3. SCADA Master & MILP Load Shedding (`app.py`)
+## 4. Algoritma Optimasi Pelepasan Beban (UFLS) berbasis SCADA
+Pada modul `app.py`, jika frekuensi jatuh menyentuh ambang batas kritis (misalnya $\le 49.50$ Hz), SCADA akan mengaktifkan *Under-Frequency Load Shedding* (UFLS).
 
-Ini adalah sistem cerdas yang melindungi Grid dari *Blackout* (Mati Listrik Total). Jika frekuensi dibiarkan jatuh, generator akan rusak. Karenanya, sistem harus memutus sebagian rumah/pabrik (Shedding).
+### 4.1 Formulasi *Mixed-Integer Linear Programming* (MILP)
+Berbeda dengan pelepasan beban konvensional yang sering bersifat buta atau heuristik statis, algoritma ini memanfaatkan MILP untuk mengambil keputusan pemutusan paling optimal berdasarkan kombinasi beban yang aktif, sehingga dampak pemadaman diminimalisir sembari menyelamatkan sistem.
 
-### A. Deteksi Defisit (Trigger UFLS)
-Algoritma di `app.py` secara konstan mengawasi `capacity_deficit` dan `freq_hz`.
-Jika frekuensi menyentuh ambang kritis **$\le 49.50$ Hz**, SCADA akan membunyikan alarm *Under-Frequency Load Shedding (UFLS)*.
+**Variabel Keputusan (*Decision Variables*):**
+Status operasional setiap beban ($i$) direpresentasikan dengan variabel biner:
+$$ x_i \in \{0, 1\} \quad \text{untuk } i = 1, 2, \dots, N $$
+*   $x_i = 1$: Beban $i$ tetap tersambung (*Connected*).
+*   $x_i = 0$: Beban $i$ dipadamkan (*Shedded*).
 
-### B. Mixed-Integer Linear Programming (MILP)
-Alih-alih memadamkan beban secara acak, SCADA menggunakan kecerdasan buatan matematis (Library `PuLP`) untuk mencari kombinasi pemadaman **paling optimal**. 
+**Fungsi Objektif (*Objective Function*):**
+Tujuan utama adalah meminimalisir total "kerugian" pemadaman, yang ditimbang (diberi bobot) berdasarkan utilitas beban (contoh: Rumah Sakit memiliki penalti/prioritas pemadaman tinggi).
+$$ \min \sum_{i=1}^{N} (1 - x_i) \cdot P_i \cdot W_i $$
+*   $P_i$: Daya aktual konsumsi beban $i$.
+*   $W_i$: Bobot prioritas fasilitas (*Priority Weight*).
 
-**1. Decision Variables (Variabel Keputusan):**
-$x_i \in \{0, 1\}$
-Beban $i$ akan dipertahankan ($x_i=1$) atau dipadamkan ($x_i=0$).
-
-**2. Objective Function (Fungsi Tujuan):**
-Tujuannya adalah *meminimalisir total dampak pemadaman*, yang dihitung dari total daya beban dikalikan Bobot Penalti (Priority/Penalty). Beban VIP (seperti Rumah Sakit) memiliki penalti tinggi sehingga sistem akan sebisa mungkin menghindari memutusnya.
-$$ \text{Minimize} \sum_{i=1}^{N} (1 - x_i) \cdot P_i \cdot W_i $$
-*Di mana $P_i$ adalah daya beban $i$, dan $W_i$ adalah bobot kepentingannya.*
-
-**3. Constraints (Kendala Matematis):**
-Jumlah daya dari beban yang **dipadamkan** harus lebih besar atau setara dengan defisit yang dialami jaringan, agar sistem kembali seimbang:
+**Kendala Sistem (*Constraints*):**
+Total daya yang dipadamkan harus setidaknya sama atau lebih besar dari besaran defisit sistem daya agar frekuensi stabil kembali:
 $$ \sum_{i=1}^{N} (1 - x_i) \cdot P_i \ge P_{Defisit} $$
 
-Sistem akan memproses matriks ini dalam hitungan milidetik dan mengeksekusi penulisan register Modbus *Trip* seketika itu juga.
+Sistem melakukan komputasi MILP ini menggunakan pustaka resolusi matematis (`PuLP`) dalam orde milidetik, lalu memberikan sinyal eksekusi *trip relay* ke *holding register* Modbus seketika.
 
-### C. Live N-1 Contingency Matrix
-Bahkan saat grid normal (50 Hz), MILP bekerja tanpa henti di belakang layar untuk **memprediksi masa depan**. Ia menghitung 4 skenario N-1 secara berulang (Bagaimana jika PLTA mati? Bagaimana jika PLTGU mati?). Hasil prediksi ini dikirim ke UI berupa *Preselection Matrix*, di mana titik-titik blok **merah** menunjukkan *Feeder* mana yang akan otomatis terpotong **JIKA** suatu saat generator tersebut mati.
-
----
-
-## 🖥️ 4. HMI & Telemetry Interface (`main.js` & `index.html`)
-
-HMI web dibangun bukan hanya sebagai display, melainkan stasiun *Control Room* yang *responsive*.
-*   **10 FPS Polling Rate:** Backend menembakkan event `grid_update` via **Socket.IO** setiap 100 milidetik.
-*   **Transient Plotting:** Komponen `Chart.js` menampung memori melingkar sebanyak 120 titik (Array(120)). Dengan suplai data 10 FPS, grafik menampilkan pergerakan transient beresolusi tinggi selama **12 detik ke belakang**, memperlihatkan kedalaman lengkungan (*Nadir*) frekuensi saat terjadi *shock* beban.
-*   **Memory Auto-Reset:** Setiap kali program di-restart, HMI memaksa PLC untuk menghapus memori *Load Trip* dan *Manual Override* lama, sehingga grid tidak pernah "terkunci" (*latched*) oleh kondisi *Blackout* masa lalu.
+### 4.2 Matriks Kontingensi N-1 Secara *Live*
+Bahkan pada frekuensi stabil 50 Hz, MILP terus menghitung probabilitas terburuk (*predictive analysis*) pada skenario kegagalan tunggal (N-1). Jika generator terbesar terputus, matriks akan menampilkan *Feeder* prioritas rendah mana saja yang di-"*Preselection*" merah untuk siap dikorbankan.
 
 ---
 
-## 🚀 5. Cara Penggunaan & Deployment
+## 5. Antarmuka HMI dan Telemetri Visual
+Human Machine Interface (HMI) yang berada pada `main.js` & `index.html` berperan sebagai *Control Room* dinamis:
+*   **Telemetri Kecepatan Tinggi (10 FPS):** Menembakkan paket event `grid_update` via **Socket.IO** secara kontinyu.
+*   **Plot Transien (*Transient Plotting*):** *Buffer array circular* menampung dan menggambarkan pergerakan frekuensi presisi tinggi, memungkinkan pemantauan titik *Nadir* (titik terendah) saat interupsi pasokan daya terjadi.
+*   **Manajemen Memori (*Anti-Latch*):** Sistem diatur untuk menghapus *latch* perintah trip dari kegagalan komputasi historis di awal, mencegah pemadaman abadi.
 
-Sistem dirancang *multi-threaded* dan terdistribusi.
+---
 
-1. **Jalankan Aplikasi PLC:**
-   Pastikan OpenModScan / Modbus PLC simulator Anda berjalan.
-2. **Terminal 1: Jalankan Engine Fisika**
+## 6. Panduan Implementasi dan Penggunaan
+
+Sistem ini didesain sebagai arsitektur *multi-threaded* dan memerlukan beberapa tahapan instalasi/eksekusi lokal:
+
+1. **Jalankan Aplikasi PLC Virtual:**
+   Pastikan OpenModScan atau *Modbus PLC simulator* lainnya aktif pada TCP Port standar.
+   
+2. **Inisialisasi *Physics Engine*:**
+   Buka Terminal 1 dan jalankan mesin dinamis kelistrikan.
    ```bash
    cd Beban_Grid
    python load.py
    ```
-   *Note: Ini akan menampilkan log per-detik pergerakan frekuensi dan RoCoF.*
-3. **Terminal 2: Jalankan SCADA Master**
+   *(Log *real-time* pergerakan RoCoF dan frekuensi akan tercetak)*
+
+3. **Inisialisasi *SCADA Master*:**
+   Buka Terminal 2 dan jalankan server berbasis web serta rutin MILP.
    ```bash
    cd Scada_22-5-26
    python app.py
    ```
-4. **Buka Control Room (Browser)**
-   Arahkan browser ke `http://127.0.0.1:5000/?role=admin`.
+
+4. **Monitoring *Control Room*:**
+   Arahkan *web browser* Anda ke tautan:
+   `http://127.0.0.1:5000/?role=admin`
    
-   *Silakan coba tekan tombol "TRIP" pada kotak PLTGU, dan saksikan pertempuran fisika dan matematika MILP menyeimbangkan Grid secara Real-Time pada Transient Plot!*
+   > **Catatan Pengujian:** Tekan tuas **"TRIP"** pada salah satu unit generator besar (seperti PLTGU) untuk mensimulasikan *contingency event*, lalu saksikan bagaimana *governor* primer merespons jatuhnya frekuensi dan algoritma MILP menyeimbangkan grid seketika melalui kurva grafik *real-time*.
