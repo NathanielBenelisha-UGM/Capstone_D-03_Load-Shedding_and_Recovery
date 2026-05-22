@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AETHER_GRID | Group Definition</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#e0e2eb",
+                        "on-background": "#181c22",
+                        "tertiary-fixed-dim": "#ffb68c",
+                        "surface-container": "#ebedf7",
+                        "primary-container": "#0a73e0",
+                        "tertiary": "#964400",
+                        "surface-bright": "#f9f9ff",
+                        "secondary-fixed-dim": "#aec7f7",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#005ab4",
+                        "outline": "#717785",
+                        "on-tertiary-fixed": "#321200",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#3f5881",
+                        "tertiary-container": "#bd5700",
+                        "surface-container-highest": "#e0e2eb",
+                        "surface": "#f9f9ff",
+                        "outline-variant": "#c1c6d5",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#763400",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e6e8f1",
+                        "secondary": "#465f88",
+                        "surface-dim": "#d7dae3",
+                        "on-error-container": "#93000a",
+                        "on-surface": "#181c22",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#b6d0ff",
+                        "surface-tint": "#005db8",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#2d476f",
+                        "inverse-primary": "#aac7ff",
+                        "on-primary-fixed-variant": "#00458d",
+                        "primary-fixed-dim": "#aac7ff",
+                        "on-secondary-fixed": "#001b3d",
+                        "on-tertiary-container": "#fffbff",
+                        "surface-container-low": "#f1f3fc",
+                        "on-primary-container": "#fefcff",
+                        "background": "#f9f9ff",
+                        "tertiary-fixed": "#ffdbc9",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#001b3e",
+                        "primary-fixed": "#d6e3ff",
+                        "on-surface-variant": "#414753",
+                        "secondary-fixed": "#d6e3ff",
+                        "inverse-surface": "#2d3037",
+                        "inverse-on-surface": "#eef0fa"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "2rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "sm": "12px",
+                        "gutter": "16px",
+                        "base": "8px",
+                        "margin": "24px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "mono": ["Roboto Mono", "monospace"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "mono-sm": ["11px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "mono-md": ["13px", {"lineHeight": "20px", "fontWeight": "500"}]
+                    },
+                    "boxShadow": {
+                        'antigravity': '0 20px 40px -10px rgba(0,0,0,0.05), 0 0 20px rgba(255,255,255,0.8) inset',
+                        'antigravity-hover': '0 30px 60px -15px rgba(0,90,180,0.1), 0 0 30px rgba(255,255,255,0.9) inset',
+                        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)',
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #f9f9ff;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(210,100%,95%,1) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(210,100%,98%,1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(220,50%,95%,1) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(210,80%,96%,1) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #c1c6d5;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-on-background min-h-screen overflow-hidden flex font-body-md relative antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar (Web) -->
+<header class="hidden md:flex fixed top-0 left-0 right-0 z-50 justify-between items-center px-gutter bg-surface-container-lowest/70 backdrop-blur-xl shadow-md shadow-surface-dim/20 rounded-full mt-4 mx-auto w-fit px-6 py-2 border border-outline-variant/30 transition-transform scale-95 hover:bg-surface-container-high/50 duration-300">
+<div class="font-headline-md text-headline-md font-black tracking-tighter text-on-surface dark:text-surface-bright mr-8">
+            AETHER_GRID
+        </div>
+<nav class="flex gap-2">
+<a class="text-on-surface-variant font-medium px-4 py-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-300 font-label-md text-label-md" href="#">Topology</a>
+<a class="text-on-surface-variant font-medium px-4 py-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-300 font-label-md text-label-md" href="#">Contingency</a>
+<a class="text-primary font-bold border-b-2 border-primary pb-1 px-4 py-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-300 font-label-md text-label-md" href="#">Admin</a>
+<a class="text-on-surface-variant font-medium px-4 py-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-300 font-label-md text-label-md" href="#">Alarms</a>
+</nav>
+<div class="flex items-center gap-4 ml-8">
+<span class="text-primary dark:text-primary-fixed font-label-md text-label-md font-bold bg-primary-container/20 px-3 py-1 rounded-full">24.5 MW</span>
+<div class="flex gap-2">
+<button class="p-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-300 text-on-surface-variant">
+<span class="material-symbols-outlined">account_tree</span>
+</button>
+<button class="p-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-300 text-on-surface-variant">
+<span class="material-symbols-outlined">grid_view</span>
+</button>
+<button class="p-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-300 text-on-surface-variant">
+<span class="material-symbols-outlined">settings_suggest</span>
+</button>
+<button class="p-2 rounded-full hover:bg-surface-container-high/50 transition-all duration-300 text-on-surface-variant">
+<span class="material-symbols-outlined">notification_important</span>
+</button>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Web Secondary Nav / Tools Context) - Rendered as a semantic side panel since Settings/Admin is active -->
+<aside class="hidden md:flex fixed left-0 top-24 h-[calc(100vh-120px)] flex-col p-4 bg-surface-container-lowest/60 backdrop-blur-md rounded-xl m-4 w-64 border border-outline-variant/20 shadow-sm z-40 transition-colors duration-200">
+<div class="mb-8 px-2">
+<h2 class="font-headline-md text-headline-md font-bold text-primary">AETHER_GRID</h2>
+<p class="font-label-md text-label-md text-on-surface-variant opacity-70">Microgrid Controller</p>
+</div>
+<nav class="flex flex-col gap-2 flex-grow">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/40 rounded-lg hover:bg-surface-variant/50 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-md text-label-md">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/40 rounded-lg hover:bg-surface-variant/50 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">hub</span>
+<span class="font-label-md text-label-md">Topology</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/40 rounded-lg hover:bg-surface-variant/50 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">table_chart</span>
+<span class="font-label-md text-label-md">Matrix</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg font-bold hover:bg-surface-variant/50 transition-colors duration-200 shadow-sm" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">admin_panel_settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-outline-variant/20 flex flex-col gap-4">
+<div class="flex items-center gap-3 px-2">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs">
+                    SA
+                </div>
+<div class="font-label-md text-label-md text-on-surface-variant truncate">
+                    System Administrator
+                </div>
+</div>
+<button class="w-full py-3 px-4 rounded-lg bg-error text-on-error font-label-md text-label-md font-bold shadow-md hover:bg-error/90 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">warning</span>
+                Emergency Stop
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-0 md:ml-[18rem] pt-24 md:pt-32 pb-24 md:pb-8 px-4 md:px-8 max-w-7xl mx-auto w-full h-screen overflow-hidden flex flex-col">
+<!-- Page Header -->
+<div class="flex justify-between items-end mb-6 shrink-0">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-background tracking-tight">Group Definition</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1 font-mono">SYS_CFG_LSHED_GRP_V2.1</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-variant/30 transition-colors glass-panel shadow-sm">
+                    Discard Changes
+                </button>
+<button class="px-6 py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-primary/90 transition-colors shadow-md flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">save</span>
+                    Commit Config
+                </button>
+</div>
+</div>
+<!-- 2-Column Bento Layout -->
+<div class="flex-1 flex flex-col lg:flex-row gap-6 min-h-0 pb-4">
+<!-- Left Column: Group List -->
+<div class="w-full lg:w-1/3 flex flex-col gap-4 min-h-0">
+<!-- Search & Add -->
+<div class="glass-panel rounded-3xl p-2 shadow-antigravity shrink-0 flex items-center gap-2">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+<input class="w-full pl-9 pr-4 py-2 bg-surface-container-lowest/50 border-none rounded-2xl font-body-md text-body-md text-on-surface focus:ring-2 focus:ring-primary/20 shadow-inner-soft placeholder:text-outline-variant" placeholder="Filter groups..." type="text"/>
+</div>
+<button class="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center hover:bg-primary/90 shadow-md transition-transform active:scale-95 shrink-0">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+<!-- Group List -->
+<div class="glass-panel rounded-3xl p-2 shadow-antigravity flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2">
+<!-- Active Group Card -->
+<div class="p-4 rounded-2xl bg-primary-container/10 border border-primary/20 relative overflow-hidden group cursor-pointer transition-all shadow-sm">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-2xl"></div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-label-md text-label-md font-bold text-on-background">Hospital Critical</h3>
+<span class="px-2 py-0.5 rounded bg-error-container text-on-error-container font-mono text-[10px] font-bold tracking-wider">PRIO-0</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-xs mb-3">Life-safety and critical care infrastructure.</p>
+<div class="flex justify-between items-center border-t border-outline-variant/20 pt-2">
+<span class="font-mono text-[11px] text-outline">ID: GRP-HSP-01</span>
+<div class="flex -space-x-1">
+<div class="w-5 h-5 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center text-[9px] font-mono text-on-surface-variant">4</div>
+</div>
+</div>
+</div>
+<!-- Inactive Group Card 1 -->
+<div class="p-4 rounded-2xl bg-surface-container-lowest/40 border border-transparent hover:border-outline-variant/30 hover:bg-surface-container-lowest/80 relative overflow-hidden cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-label-md text-label-md font-medium text-on-surface">Industrial Zone A</h3>
+<span class="px-2 py-0.5 rounded bg-tertiary-container/20 text-on-tertiary-container font-mono text-[10px] font-bold tracking-wider">PRIO-2</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-xs mb-3">Heavy manufacturing and processing.</p>
+<div class="flex justify-between items-center border-t border-outline-variant/10 pt-2">
+<span class="font-mono text-[11px] text-outline">ID: GRP-IND-0A</span>
+<div class="flex -space-x-1">
+<div class="w-5 h-5 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center text-[9px] font-mono text-on-surface-variant">12</div>
+</div>
+</div>
+</div>
+<!-- Inactive Group Card 2 -->
+<div class="p-4 rounded-2xl bg-surface-container-lowest/40 border border-transparent hover:border-outline-variant/30 hover:bg-surface-container-lowest/80 relative overflow-hidden cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-label-md text-label-md font-medium text-on-surface">Residential Sect 4</h3>
+<span class="px-2 py-0.5 rounded bg-surface-variant text-on-surface-variant font-mono text-[10px] font-bold tracking-wider">PRIO-5</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-xs mb-3">North quadrant residential blocks.</p>
+<div class="flex justify-between items-center border-t border-outline-variant/10 pt-2">
+<span class="font-mono text-[11px] text-outline">ID: GRP-RES-04</span>
+<div class="flex -space-x-1">
+<div class="w-5 h-5 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center text-[9px] font-mono text-on-surface-variant">8</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Membership Selection -->
+<div class="w-full lg:w-2/3 glass-panel rounded-3xl shadow-antigravity flex flex-col min-h-0 border border-outline-variant/20 relative overflow-hidden">
+<!-- Abstract BG Element inside right panel -->
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Panel Header -->
+<div class="p-6 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-lowest/30 shrink-0">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h2 class="font-headline-md text-headline-md text-on-background">Hospital Critical</h2>
+<span class="px-2 py-1 rounded bg-error-container text-on-error-container font-mono text-xs font-bold">PRIORITY 0</span>
+</div>
+<p class="font-mono text-mono-md text-on-surface-variant">GRP-HSP-01 | 4 Members Active</p>
+</div>
+<button class="w-10 h-10 rounded-full border border-outline-variant/30 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant/30 transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</div>
+<!-- Grid Toolbar -->
+<div class="px-6 py-3 border-b border-outline-variant/10 flex justify-between items-center shrink-0 bg-surface-container-lowest/10">
+<div class="flex gap-2">
+<span class="font-mono text-[11px] font-bold text-on-surface-variant tracking-widest uppercase">Available Feeders</span>
+</div>
+<div class="flex items-center gap-4">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="rounded border-outline text-primary focus:ring-primary/20 bg-transparent w-4 h-4" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface-variant">Show Assigned Only</span>
+</label>
+<div class="h-4 w-px bg-outline-variant/40"></div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[16px]">search</span>
+<input class="pl-8 pr-3 py-1 bg-surface-container-lowest/40 border border-outline-variant/30 rounded-lg font-mono text-[12px] text-on-surface focus:ring-1 focus:ring-primary focus:border-primary shadow-inner-soft w-48" placeholder="Search feeders..." type="text"/>
+</div>
+</div>
+</div>
+<!-- Membership Grid -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-surface-container-lowest/20">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Feeder Item: Selected -->
+<label class="relative flex items-start gap-3 p-4 rounded-2xl bg-surface-container-lowest border-2 border-primary/40 shadow-sm cursor-pointer hover:border-primary transition-colors group">
+<div class="pt-1">
+<input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/30 mt-0.5" type="checkbox"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<span class="font-mono text-mono-md font-bold text-on-background">FDR-104-MAIN</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-variant text-on-surface-variant font-mono text-[9px]">SUB-A</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm mt-1 mb-2">City Gen Hosp - Primary Infeed</p>
+<div class="flex gap-3 mt-2">
+<div class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+<span class="font-mono text-[11px]">4.2 MW</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant">
+<div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+<span class="font-mono text-[11px]">Online</span>
+</div>
+</div>
+</div>
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary text-[18px]">drag_indicator</span>
+</div>
+</label>
+<!-- Feeder Item: Selected -->
+<label class="relative flex items-start gap-3 p-4 rounded-2xl bg-surface-container-lowest border-2 border-primary/40 shadow-sm cursor-pointer hover:border-primary transition-colors group">
+<div class="pt-1">
+<input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/30 mt-0.5" type="checkbox"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<span class="font-mono text-mono-md font-bold text-on-background">FDR-105-AUX</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-variant text-on-surface-variant font-mono text-[9px]">SUB-A</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm mt-1 mb-2">City Gen Hosp - Backup Genset Bus</p>
+<div class="flex gap-3 mt-2">
+<div class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+<span class="font-mono text-[11px]">1.5 MW</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant">
+<div class="w-2 h-2 rounded-full bg-surface-variant"></div>
+<span class="font-mono text-[11px]">Standby</span>
+</div>
+</div>
+</div>
+</label>
+<!-- Feeder Item: Unselected -->
+<label class="relative flex items-start gap-3 p-4 rounded-2xl bg-surface-container-lowest/50 border border-outline-variant/30 hover:bg-surface-container-lowest shadow-sm cursor-pointer hover:border-outline-variant transition-colors group">
+<div class="pt-1">
+<input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/30 mt-0.5" type="checkbox"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<span class="font-mono text-mono-md font-bold text-on-surface">FDR-201-COM</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-variant/50 text-on-surface-variant font-mono text-[9px]">SUB-B</span>
+</div>
+<p class="font-body-md text-body-md text-outline text-sm mt-1 mb-2">Downtown Commercial Core</p>
+<div class="flex gap-3 mt-2">
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+<span class="font-mono text-[11px]">8.7 MW</span>
+</div>
+</div>
+</div>
+</label>
+<!-- Feeder Item: Unselected -->
+<label class="relative flex items-start gap-3 p-4 rounded-2xl bg-surface-container-lowest/50 border border-outline-variant/30 hover:bg-surface-container-lowest shadow-sm cursor-pointer hover:border-outline-variant transition-colors group">
+<div class="pt-1">
+<input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/30 mt-0.5" type="checkbox"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<span class="font-mono text-mono-md font-bold text-on-surface">FDR-202-COM</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-variant/50 text-on-surface-variant font-mono text-[9px]">SUB-B</span>
+</div>
+<p class="font-body-md text-body-md text-outline text-sm mt-1 mb-2">Uptown Retail District</p>
+<div class="flex gap-3 mt-2">
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+<span class="font-mono text-[11px]">3.1 MW</span>
+</div>
+</div>
+</div>
+</label>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-40 flex justify-center gap-8 items-center px-gutter pb-safe bg-surface-container-low/90 backdrop-blur-md h-16 rounded-t-3xl shadow-2xl shadow-surface-dim/40 transition-all duration-300">
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-highest/60 transition-all duration-300 rounded-xl">
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-label-md text-label-md mt-1 text-[10px]">Live Logs</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-highest/60 transition-all duration-300 rounded-xl">
+<span class="material-symbols-outlined">warning</span>
+<span class="font-label-md text-label-md mt-1 text-[10px]">Deficits</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-error-container text-on-error-container rounded-xl px-6 py-1 hover:bg-surface-container-highest/60 transition-all duration-300">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="font-label-md text-label-md mt-1 text-[10px]">Alerts</span>
+</button>
+</nav>
+</body></html>

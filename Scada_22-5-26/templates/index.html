@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Shedding and Recovery System</title>
+
+    <!-- Modern Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,500&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/socketio.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Custom CSS & JS -->
+    <link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+
+<body>
+
+    <!-- 3D Ambience -->
+    <canvas id="bg-canvas"></canvas>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <!-- WELCOME SCREEN OVERLAY -->
+    <div id="welcome-screen" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; background: radial-gradient(circle at center, #0f172a 0%, #000000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease, transform 0.8s ease; overflow: hidden;">
+        
+        <!-- Antigravity Bubble Canvas -->
+        <canvas id="bubble-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;"></canvas>
+
+        <div style="display: flex; gap: 40px; margin-bottom: 30px; z-index: 10; position: relative;">
+            <img src="/static/Logo_UGM.png" alt="UGM" style="height: 80px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));">
+            <img src="/static/Logo_Schneider.png" alt="Schneider Electric" style="height: 80px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));">
+        </div>
+
+        <div class="glass-panel" style="text-align: center; width: 95%; max-width: 1400px; padding: 40px 20px; animation: slideUp 1s cubic-bezier(0.16, 1, 0.3, 1); z-index: 10; position: relative;">
+            <!-- Judul dipaksa sebaris dengan scaling dinamis -->
+            <h1 style="font-family: var(--font-serif); font-size: clamp(1rem, 2.5vw, 2.5rem); color: #fff; margin-bottom: 10px; white-space: nowrap;">
+                SCADA-Based Optimal Load Shedding and Recovery
+            </h1>
+            <h3 style="font-weight: 400; color: var(--text-muted); margin-bottom: 30px; font-size: clamp(0.9rem, 1.5vw, 1.2rem);">
+                Using Mathematical Optimization Under Generation and Feeder Contingencies
+            </h3>
+            
+            <div style="margin-bottom: 40px; color: var(--primary-blue); font-weight: 600; letter-spacing: 2px; font-size: clamp(0.8rem, 1.2vw, 1rem);">
+                TEAM CAPSTONE D-03
+            </div>
+
+            <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn" style="padding: 15px 40px; font-size: clamp(1rem, 1.5vw, 1.2rem); background: rgba(255,255,255,0.05); cursor: pointer;" onclick="enterDashboard('viewer')">
+                    <i class="ph ph-eye" style="font-size: 1.5rem; margin-right: 8px; vertical-align: middle;"></i> Viewer Mode
+                </button>
+                <button class="btn btn-primary" style="padding: 15px 40px; font-size: clamp(1rem, 1.5vw, 1.2rem); cursor: pointer;" onclick="promptAdmin()">
+                    <i class="ph-fill ph-lock-key" style="font-size: 1.5rem; margin-right: 8px; vertical-align: middle;"></i> Admin Login
+                </button>
+            </div>
+        </div>
+        
+        <!-- Admin Password Modal -->
+        <div id="admin-modal" style="display: none; margin-top: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border); z-index: 20; position: relative; backdrop-filter: blur(10px);">
+            <p style="margin-top:0; color: #fff;">Enter Admin Password:</p>
+            <input type="password" id="admin-pwd" style="padding: 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.5); color: #fff; margin-right: 10px;" placeholder="Password...">
+            <button class="btn btn-primary" style="cursor: pointer;" onclick="enterDashboard('admin')">Unlock</button>
+        </div>
+    </div>
+
+    <!-- Antigravity Bubbles Script -->
+    <script>
+        const canvas = document.getElementById('bubble-canvas');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+        let particles = [];
+        let mouse = { x: width/2, y: height/2 };
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        document.getElementById('welcome-screen').addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.size = Math.random() * 3 + 1;
+                this.baseX = this.x;
+                this.baseY = this.y;
+                this.density = (Math.random() * 30) + 1;
+                // Colors typical of Antigravity: soft blue, pink, purple, orange
+                const colors = ['#4285f4', '#ea4335', '#fbbc05', '#34a853', '#8ab4f8'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                this.opacity = Math.random() * 0.4 + 0.1;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.opacity;
+                ctx.fill();
+            }
+            update() {
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                let forceDirectionX = dx / distance;
+                let forceDirectionY = dy / distance;
+                
+                // Max distance past which the mouse has no effect
+                let maxDistance = 200;
+                let force = (maxDistance - distance) / maxDistance;
+                // Repel effect (Antigravity)
+                if (force < 0) force = 0;
+                let directionX = (forceDirectionX * force * this.density) * -1.5;
+                let directionY = (forceDirectionY * force * this.density) * -1.5;
+
+                if (distance < maxDistance) {
+                    this.x += directionX;
+                    this.y += directionY;
+                } else {
+                    if (this.x !== this.baseX) {
+                        let dx = this.x - this.baseX;
+                        this.x -= dx / 20;
+                    }
+                    if (this.y !== this.baseY) {
+                        let dy = this.y - this.baseY;
+                        this.y -= dy / 20;
+                    }
+                }
+                this.draw();
+            }
+        }
+
+        for (let i = 0; i < 200; i++) {
+            particles.push(new Particle());
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+
+    <div id="app-layout">
+
+        <!-- SIDEBAR NAVIGATION -->
+        <div id="sidebar">
+            <div class="sidebar-logo">
+                <i class="ph-fill ph-lightning"></i>
+                <div>
+                    <h2>LOAD SHEDDING AND RECOVERY SYSTEM</h2>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Team Capstone D-03</div>
+                </div>
+            </div>
+
+            <div class="nav-menu">
+                <a class="nav-item active" data-tab="tab-overview">
+                    <i class="ph ph-squares-four"></i> Overview
+                </a>
+                <a class="nav-item" data-tab="tab-load-settings">
+                    <i class="ph ph-plugs"></i> Load Settings
+                </a>
+                <a class="nav-item" data-tab="tab-gen-settings">
+                    <i class="ph ph-cpu"></i> Generator Control
+                </a>
+                <a class="nav-item" data-tab="tab-contingency">
+                    <i class="ph ph-warning-circle"></i> Contingency Matrix
+                </a>
+                <a class="nav-item" data-tab="tab-preselection">
+                    <i class="ph ph-sliders"></i> Preselection
+                </a>
+                <a class="nav-item" data-tab="tab-group-def">
+                    <i class="ph ph-tree-structure"></i> Group Definition
+                </a>
+                <a class="nav-item" data-tab="tab-alarm-log">
+                    <i class="ph ph-bell-ringing"></i> Alarm Log
+                </a>
+                <a class="nav-item" data-tab="tab-history">
+                    <i class="ph ph-clock-counter-clockwise"></i> History Log
+                </a>
+                <a class="nav-item" data-tab="tab-sld">
+                    <i class="ph ph-git-network"></i> SLD View
+                </a>
+            </div>
+            <div style="padding: 24px; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+                <span id="role-badge" class="badge">VIEWER</span>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div id="main-content">
+
+            <!-- HEADER -->
+            <div id="header">
+                <div class="header-left">
+                    <h1 class="title-serif" style="font-size: 1.1rem; line-height: 1.3">
+                        SCADA-Based Optimal Load Shedding and Recovery<br>
+                        <span style="font-size: 0.8rem; font-family: var(--font-sans); color: var(--text-muted);">Using
+                            Mathematical Optimization Under Generation and Feeder Contingencies</span>
+                    </h1>
+                </div>
+                <div class="header-right">
+                    <div id="sys-time"
+                        style="font-family: var(--font-mono); font-size: 1.1rem; color: var(--primary-blue)">00:00</div>
+                    <div id="plc-status" class="status-pill offline">
+                        <i class="ph-fill ph-warning-circle"></i> PLC OFFLINE
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABS AREA -->
+
+            <!-- 1. OVERVIEW -->
+            <div id="tab-overview" class="tab-pane active">
+                <div class="grid-4">
+                    <div class="metric-card glass-panel" id="card-gen">
+                        <div class="metric-label">Total Generation</div>
+                        <div class="metric-value" id="ov-gen">0.0</div>
+                        <div class="metric-unit">MW</div>
+                    </div>
+                    <div class="metric-card glass-panel" id="card-load">
+                        <div class="metric-label">Active Load</div>
+                        <div class="metric-value" id="ov-load">0.0</div>
+                        <div class="metric-unit">MW</div>
+                    </div>
+                    <div class="metric-card glass-panel warning" id="card-def">
+                        <div class="metric-label">Network Deficit</div>
+                        <div class="metric-value" id="ov-def" style="color:var(--warning-yellow)">0.0</div>
+                        <div class="metric-unit">MW</div>
+                    </div>
+                    <div class="metric-card glass-panel" id="card-freq">
+                        <div class="metric-label">System Frequency</div>
+                        <div class="metric-value" id="ov-freq">50.00</div>
+                        <div class="metric-unit">Hz</div>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-top:24px;">
+                    <div class="glass-panel">
+                        <div class="metric-label" style="margin-bottom: 12px;">Frequency Transient Plot</div>
+                        <div class="chart-container">
+                            <canvas id="freqChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-panel">
+                        <div class="metric-label" style="margin-bottom: 12px;">Generator Distribution</div>
+                        <div id="gen-bars-container">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. LOAD SETTINGS -->
+            <div id="tab-load-settings" class="tab-pane">
+                <h2 style="margin-top:0">Load Monitor & Control</h2>
+
+                <div class="grid-2">
+                    <div class="glass-panel">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Load ID</th>
+                                    <th>Actual Power</th>
+                                    <th>Status / Breaker</th>
+                                </tr>
+                            </thead>
+                            <tbody id="load-table-body">
+                                <!-- Injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="glass-panel admin-only" id="admin-override-panel" style="display: none;">
+                        <h3 style="margin-top:0; color: var(--warning-yellow)"><i class="ph-fill ph-warning"></i> Admin
+                            Sensor Override</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted)">Pilih mode AUTO (baca sensor Python)
+                            atau MANUAL Override. Jika MANUAL, isi nilai daya (MW) untuk memaksa pembacaan sensor.</p>
+
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 8px;" id="override-inputs">
+                            <!-- Inputs injected by JS -->
+                        </div>
+                        <div style="margin-top: 16px; text-align: right;">
+                            <button class="btn" onclick="sendOverrides()">Apply Config</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. GENERATOR CONTROL -->
+            <div id="tab-gen-settings" class="tab-pane">
+                <h2 style="margin-top:0">Generator Breaker Control</h2>
+                <div class="glass-panel">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Unit Name</th>
+                                <th>Rated Capacity</th>
+                                <th>Actual Output</th>
+                                <th>Status</th>
+                                <th class="admin-only" style="display: none;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gen-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. CONTINGENCY MATRIX -->
+            <div id="tab-contingency" class="tab-pane">
+                <h2 style="margin-top:0">Live Contingencies & Preselection</h2>
+                <div class="glass-panel">
+                    <p style="color:var(--text-muted)">Menampilkan prediksi beban mana saja (blok merah) yang akan otomatis di-trip oleh algoritma MILP apabila salah satu generator mengalami gangguan (N-1).</p>
+                    <table class="data-table" style="text-align: center;">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="text-align: left; vertical-align: middle;">Nama Load</th>
+                                <th rowspan="2" style="vertical-align: middle;">Actual Load</th>
+                                <th colspan="4" style="border-bottom: 1px solid var(--glass-border);">Contingencies Trip Generator</th>
+                            </tr>
+                            <tr>
+                                <th>PLTA (75MW)</th>
+                                <th>PLTS + BESS (25MW)</th>
+                                <th>PLTGU (75MW)</th>
+                                <th>PLTB (25MW)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contingency-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 5. PRESELECTION -->
+            <div id="tab-group-def" class="tab-pane">
+                <h2 style="margin-top:0">Group Definition</h2>
+                <div class="glass-panel">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Feeder Group</th>
+                                <th>Assigned Loads</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>SS1</td>
+                                <td>L101</td>
+                            </tr>
+                            <tr>
+                                <td>SS2</td>
+                                <td>L201</td>
+                            </tr>
+                            <tr>
+                                <td>SS3</td>
+                                <td>L301, L302, L303, L304, L305</td>
+                            </tr>
+                            <tr>
+                                <td>SS4</td>
+                                <td>L401, L402, L403, L404, L405</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 7. ALARM LOG -->
+            <div id="tab-alarm-log" class="tab-pane">
+                <h2 style="margin-top:0"><i class="ph ph-bell"></i> Live Alarm & Event Log</h2>
+                <div class="glass-panel" id="alarm-log-content"
+                    style="height: 60vh; overflow-y:auto; display:flex; flex-direction:column-reverse;">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- 8. HISTORY LOG -->
+            <div id="tab-history" class="tab-pane">
+                <h2 style="margin-top:0">Historical Event Log</h2>
+                <div class="glass-panel"
+                    style="height: 60vh; display:flex; justify-content:center; align-items:center; color:var(--text-muted)">
+                    <p>Historical data requires DB implementation (Not available in pure memory state).</p>
+                </div>
+            </div>
+
+            <!-- 9. SLD -->
+            <div id="tab-sld" class="tab-pane" style="padding:0; height: 100%;">
+                <div class="glass-panel"
+                    style="width: 100%; height: 100%; overflow: hidden; position: relative; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); border: 1px solid var(--glass-border); box-shadow: inset 0 0 50px rgba(0,0,0,0.5);">
+
+                    <!-- SVG injected here by JS -->
+                    <div id="sld-container"
+                        style="width: 100%; height: 100%; transform-origin: center center; cursor: grab; transition: transform 0.1s ease-out; display: flex; align-items: center; justify-content: center;">
+                        <span style="color: var(--text-muted);"><i class="ph ph-spinner ph-spin"></i> Loading Circuit
+                            Diagram...</span>
+                    </div>
+
+                    <!-- Overlay Controls -->
+                    <div
+                        style="position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px; backdrop-filter: blur(4px); border: 1px solid var(--glass-border);">
+                        <button class="btn" style="min-width: 40px; padding: 8px;" onclick="zoomSLD(0.2)"
+                            title="Zoom In"><i class="ph-fill ph-magnifying-glass-plus"></i></button>
+                        <button class="btn" style="min-width: 40px; padding: 8px;" onclick="zoomSLD(-0.2)"
+                            title="Zoom Out"><i class="ph-fill ph-magnifying-glass-minus"></i></button>
+                        <button class="btn" style="min-width: 40px; padding: 8px;" onclick="resetSLD()"
+                            title="Reset View"><i class="ph-fill ph-arrows-out"></i></button>
+                    </div>
+
+                    <!-- SLD Custom CSS injected inline to affect the SVG -->
+                    <style>
+                        #sld-container svg {
+                            max-width: 100%;
+                            max-height: 100%;
+                            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+                        }
+
+                        #sld-container svg text {
+                            font-family: 'Inter', sans-serif !important;
+                            font-weight: 600;
+                            letter-spacing: 0.5px;
+                            pointer-events: none;
+                        }
+
+                        #sld-container svg polyline,
+                        #sld-container svg polygon,
+                        #sld-container svg ellipse,
+                        #sld-container svg path {
+                            transition: stroke 0.4s ease, fill 0.4s ease, filter 0.4s ease, stroke-width 0.4s ease;
+                        }
+
+                        /* Generator Animations */
+                        @keyframes genPulseAnim {
+                            0% {
+                                filter: drop-shadow(0 0 4px rgba(0, 255, 170, 0.4));
+                                stroke-width: 1px;
+                            }
+
+                            50% {
+                                filter: drop-shadow(0 0 15px rgba(0, 255, 170, 1));
+                                stroke-width: 3px;
+                            }
+
+                            100% {
+                                filter: drop-shadow(0 0 4px rgba(0, 255, 170, 0.4));
+                                stroke-width: 1px;
+                            }
+                        }
+
+                        .gen-pulse {
+                            animation: genPulseAnim 2s ease-in-out infinite !important;
+                        }
+
+                        @keyframes spinRotor {
+                            0% {
+                                transform: rotate(0deg);
+                            }
+
+                            100% {
+                                transform: rotate(360deg);
+                            }
+                        }
+
+                        .gen-spin {
+                            animation: spinRotor 1s linear infinite;
+                            transform-box: fill-box;
+                            transform-origin: center center;
+                            display: inline-block;
+                        }
+
+                        /* Electricity Flow Animation */
+                        @keyframes flowEnergy {
+                            to {
+                                stroke-dashoffset: -24;
+                            }
+                        }
+
+                        .energy-flow {
+                            stroke-dasharray: 8 4 !important;
+                            animation: flowEnergy 0.6s linear infinite !important;
+                        }
+                    </style>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="/static/main.js?v=2"></script>
+</body>
+
+</html>
