@@ -1,4 +1,4 @@
-# ⚡ Simulasi Digital Twin SCADA Grid & Dynamic Load Shedding
+SCADA-Based Optimal Load Shedding and Recovery Using Mathematical Optimization Under Generation and Feeder Contingencies
 
 ## Abstrak
 Proyek ini mengusung pengembangan *Real-Time Digital Twin* berskala industri untuk Sistem Tenaga Listrik. Sistem ini dirancang untuk mensimulasikan dinamika frekuensi transien, respons kontrol primer (*Governor Droop Control*), dan melakukan optimasi pelepasan beban (*Under-Frequency Load Shedding* / UFLS) berbasis algoritma optimasi *Mixed-Integer Linear Programming* (MILP). Dengan resolusi eksekusi sebesar 100 ms (10 FPS), simulasi ini memodelkan kinetika energi jaringan secara *real-time* dan interaktif.
