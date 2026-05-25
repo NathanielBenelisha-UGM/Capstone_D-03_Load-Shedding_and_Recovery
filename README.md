@@ -62,9 +62,7 @@ Dinamika transien frekuensi dimodelkan menggunakan persamaan ayunan. Saat terjad
 
 Laju perubahan frekuensi (RoCoF atau $df/dt$) dihitung dengan persamaan:
 
-$$
-\frac{df}{dt} = \frac{f_{nom}}{2 \cdot H_{eff}} \times (\Delta P_{pu} - P_{damping})
-$$
+$$ \frac{df}{dt} = \frac{f_{nom}}{2 \cdot H_{eff}} \times (\Delta P_{pu} - P_{damping}) $$
 
 **Dimana:**
 *   **$f_{nom}$**: Frekuensi nominal operasional grid (50.0 Hz).
@@ -74,16 +72,12 @@ $$
 
 Nilai frekuensi pada langkah waktu (time-step) berikutnya dihitung secara numerik menggunakan metode integrasi Euler:
 
-$$
-f_{t+\Delta t} = f_t + \left( \frac{df}{dt} \times \Delta t \right)
-$$
+$$ f_{t+\Delta t} = f_t + \left( \frac{df}{dt} \times \Delta t \right) $$
 
 ### 3.2 Kontrol Primer: *Governor Droop Control*
 Sebagai respons terhadap deviasi frekuensi, sistem kontrol *governor* akan otomatis membuka atau menutup katup mekanis untuk mengatur daya mekanik (*Mechanical Power*). Karakteristik *droop* dirumuskan sebagai:
 
-$$
-\Delta P_{target} = -\left( \frac{f - f_{nom}}{f_{nom}} \right) \times \frac{1}{R} \times P_{Rated}
-$$
+$$ \Delta P_{target} = -\left( \frac{f - f_{nom}}{f_{nom}} \right) \times \frac{1}{R} \times P_{Rated} $$
 
 **Dimana:**
 *   $R$: *Droop setting* (biasanya dalam rentang 4-5%).
@@ -103,27 +97,21 @@ Berbeda dengan pelepasan beban konvensional yang sering bersifat buta atau heuri
 **Variabel Keputusan (*Decision Variables*):**
 Status operasional setiap beban ($i$) direpresentasikan dengan variabel biner:
 
-$$
-x_i \in \{0, 1\} \quad \text{untuk } i = 1, 2, \dots, N
-$$
+$$ x_i \in \{0, 1\} \quad \text{untuk } i = 1, 2, \dots, N $$
 *   $x_i = 1$: Beban $i$ tetap tersambung (*Connected*).
 *   $x_i = 0$: Beban $i$ dipadamkan (*Shedded*).
 
 **Fungsi Objektif (*Objective Function*):**
 Tujuan utama adalah meminimalisir total "kerugian" pemadaman, yang ditimbang (diberi bobot) berdasarkan utilitas beban (contoh: Rumah Sakit memiliki penalti/prioritas pemadaman tinggi).
 
-$$
-\min \sum_{i=1}^{N} (1 - x_i) \cdot P_i \cdot W_i
-$$
+$$ \min \sum_{i=1}^{N} (1 - x_i) \cdot P_i \cdot W_i $$
 *   $P_i$: Daya aktual konsumsi beban $i$.
 *   $W_i$: Bobot prioritas fasilitas (*Priority Weight*).
 
 **Kendala Sistem (*Constraints*):**
 Total daya yang dipadamkan harus setidaknya sama atau lebih besar dari besaran defisit sistem daya agar frekuensi stabil kembali:
 
-$$
-\sum_{i=1}^{N} (1 - x_i) \cdot P_i \ge P_{Defisit}
-$$
+$$ \sum_{i=1}^{N} (1 - x_i) \cdot P_i \ge P_{Defisit} $$
 
 Sistem melakukan komputasi MILP ini menggunakan pustaka resolusi matematis (`PuLP`) dalam orde milidetik, lalu memberikan sinyal eksekusi *trip relay* ke *holding register* Modbus seketika.
 
