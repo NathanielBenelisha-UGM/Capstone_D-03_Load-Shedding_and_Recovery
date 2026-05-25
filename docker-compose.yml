@@ -3,7 +3,7 @@ version: '3.8'
 services:
   scada_master:
     build: 
-      context: ./Scada_22-5-26
+      context: ./SCADA
       dockerfile: Dockerfile
     container_name: scada_master
     ports:

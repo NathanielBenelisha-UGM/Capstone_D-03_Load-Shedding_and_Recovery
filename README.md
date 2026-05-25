@@ -171,7 +171,7 @@ Jalur instalasi terbaik dan terekam standar industri.
 3. **Inisialisasi *SCADA Master*:**
    Buka Terminal 2 dan jalankan server berbasis web serta rutin MILP.
    ```bash
-   cd Scada_22-5-26
+   cd SCADA
    python app.py
    ```
 
@@ -219,7 +219,7 @@ Proyek ini terstruktur ke dalam 3 modul pilar utama. Untuk mendalami perhitungan
 
 1. ⚙️ **[Physics Engine & Dinamika Kelistrikan (Beban_Grid/README.md)](Beban_Grid/README.md)**
    Penjelasan detail mengenai *Swing Equation*, Integrasi Euler, dan algoritma *Governor Droop / AGC* untuk simulasi inersia.
-2. 🧠 **[SCADA Master & HMI Web (Scada_22-5-26/README.md)](Scada_22-5-26/README.md)**
+2. 🧠 **[SCADA Master & HMI Web (SCADA/README.md)](SCADA/README.md)**
    Penjelasan komprehensif formulasi matematika *Mixed-Integer Linear Programming* (MILP), Anti-Osilasi, arsitektur *backend* Flask/Socket.IO, dan algoritma grafis UI.
 3. 🏭 **[Virtual PLC & Skema Industri (VirtualPLC/README.md)](VirtualPLC/README.md)**
    Spesifikasi perangkat keras EcoStruxure Machine Expert - Basic, peta alamat memori (*Memory Word Mapping*), dan kupas tuntas implementasi *fail-safe Ladder Logic*.
