@@ -75,3 +75,44 @@ Pemrograman PLC menggunakan *Ladder Diagram* (LD) dengan prinsip keamanan gagal 
 *   Secara *default*, register UFLS (contoh: `%M21`) bernilai `0`. Karena menggunakan kontak *Normally Closed* (`| / |`), arus logika tetap mengalir dan *coil* penyulang beban (`%Q0.4`) terus menyala.
 *   Ketika algoritma *Mixed-Integer Linear Programming* (MILP) di server Python mendeteksi anjloknya frekuensi akibat defisit daya, ia akan menumbalkan beban prioritas rendah dengan menuliskan nilai `1` ke register `%M21`.
 *   Secara instan (dalam satuan milidetik), sirkuit PLC terbuka (kontak terputus), *coil* beban mati, dan defisit jaringan terselamatkan. Status nyata matinya *coil* ini dikirim kembali ke SCADA lewat register pembaca `%M60` untuk divisualisasikan pada elemen UI secara *real-time*.
+
+---
+
+## 4. Konfigurasi Sistem (Hardware & Software)
+
+### 4.1. Bill of Material (BoM)
+![Bill of Material](VirtualPLC_Dynamic-04.png)
+*(Gambar: Daftar komponen perangkat keras yang disimulasikan, mencakup unit utama TM221ME16R/G serta modul ekspansi digital dan analog.)*
+
+### 4.2. Konfigurasi Hardware (I/O Mapping)
+![Hardware Config 1](VirtualPLC_Dynamic-05.png)
+![Hardware Config 2](VirtualPLC_Dynamic-06.png)
+![Hardware Config 3](VirtualPLC_Dynamic-07.png)
+![Hardware Config 4](VirtualPLC_Dynamic-08.png)
+![Hardware Config 5](VirtualPLC_Dynamic-09.png)
+![Hardware Config 6](VirtualPLC_Dynamic-10.png)
+*(Gambar: Konfigurasi modul ekspansi I/O pada rak PLC. Memperlihatkan alokasi terminal input/output untuk sensor fisik jaringan dan kontaktor sirkuit beban.)*
+
+### 4.3. Konfigurasi Software (Network & Modbus)
+![Software Config 1](VirtualPLC_Dynamic-11.png)
+![Software Config 2](VirtualPLC_Dynamic-12.png)
+![Software Config 3](VirtualPLC_Dynamic-13.png)
+*(Gambar: Pengaturan port Ethernet (ETH1) sebagai Modbus TCP Server. Port 502 dibuka agar server Node.js/Python SCADA dapat melakukan polling data secara berkesinambungan.)*
+
+---
+
+## 5. Manajemen Memori & Simbol
+
+### 5.1. Alokasi dan Konsumsi Memori
+![Memory Consumption](VirtualPLC_Dynamic-15.png)
+*(Gambar: Ringkasan penggunaan memori internal PLC (%M dan %MW). Menunjukkan bahwa logika Load Shedding ini teroptimasi dan efisien, hanya memakan sebagian kecil dari memori kontroler.)*
+
+### 5.2. Tabel Simbol (Symbol Table)
+![Symbol Table 1](VirtualPLC_Dynamic-24.png)
+![Symbol Table 2](VirtualPLC_Dynamic-25.png)
+*(Gambar: Pemetaan label variabel *human-readable* ke alamat fisik memori PLC. Sangat esensial untuk meminimalisir kesalahan pemetaan memori antara *Backend Python* dengan PLC.)*
+
+### 5.3. Tabel Referensi Silang (Cross-Reference)
+![Cross-Reference 1](VirtualPLC_Dynamic-26.png)
+![Cross-Reference 2](VirtualPLC_Dynamic-27.png)
+*(Gambar: Tabel referensi silang yang melacak di *rung* mana saja sebuah register digunakan (Read/Write). Membantu proses *troubleshooting* skema perlindungan *fail-safe*.)*
