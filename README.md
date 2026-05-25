@@ -61,6 +61,7 @@ Modul `load.py` bertindak sebagai mesin fisika diferensial yang merepresentasika
 Dinamika transien frekuensi dimodelkan menggunakan persamaan ayunan. Saat terjadi *Network Deficit* (Total Beban > Total Pembangkitan), energi kinetik yang tersimpan di dalam rotor akan terlepas untuk menutupi defisit, menyebabkan deselerasi rotasi (penurunan frekuensi). 
 
 Laju perubahan frekuensi (RoCoF atau $df/dt$) dihitung dengan persamaan:
+
 $$
 \frac{df}{dt} = \frac{f_{nom}}{2 \cdot H_{eff}} \times (\Delta P_{pu} - P_{damping})
 $$
@@ -72,12 +73,14 @@ $$
 *   **$P_{damping}$**: *Load Damping Factor*. Merepresentasikan respons alamiah beban (seperti motor induksi) yang menurunkan konsumsi daya saat frekuensi turun. Didefinisikan sebagai $P_{damping} = D \times \frac{f - f_{nom}}{f_{nom}}$.
 
 Nilai frekuensi pada langkah waktu (time-step) berikutnya dihitung secara numerik menggunakan metode integrasi Euler:
+
 $$
 f_{t+\Delta t} = f_t + \left( \frac{df}{dt} \times \Delta t \right)
 $$
 
 ### 3.2 Kontrol Primer: *Governor Droop Control*
 Sebagai respons terhadap deviasi frekuensi, sistem kontrol *governor* akan otomatis membuka atau menutup katup mekanis untuk mengatur daya mekanik (*Mechanical Power*). Karakteristik *droop* dirumuskan sebagai:
+
 $$
 \Delta P_{target} = -\left( \frac{f - f_{nom}}{f_{nom}} \right) \times \frac{1}{R} \times P_{Rated}
 $$
@@ -99,6 +102,7 @@ Berbeda dengan pelepasan beban konvensional yang sering bersifat buta atau heuri
 
 **Variabel Keputusan (*Decision Variables*):**
 Status operasional setiap beban ($i$) direpresentasikan dengan variabel biner:
+
 $$
 x_i \in \{0, 1\} \quad \text{untuk } i = 1, 2, \dots, N
 $$
@@ -107,6 +111,7 @@ $$
 
 **Fungsi Objektif (*Objective Function*):**
 Tujuan utama adalah meminimalisir total "kerugian" pemadaman, yang ditimbang (diberi bobot) berdasarkan utilitas beban (contoh: Rumah Sakit memiliki penalti/prioritas pemadaman tinggi).
+
 $$
 \min \sum_{i=1}^{N} (1 - x_i) \cdot P_i \cdot W_i
 $$
@@ -115,6 +120,7 @@ $$
 
 **Kendala Sistem (*Constraints*):**
 Total daya yang dipadamkan harus setidaknya sama atau lebih besar dari besaran defisit sistem daya agar frekuensi stabil kembali:
+
 $$
 \sum_{i=1}^{N} (1 - x_i) \cdot P_i \ge P_{Defisit}
 $$
