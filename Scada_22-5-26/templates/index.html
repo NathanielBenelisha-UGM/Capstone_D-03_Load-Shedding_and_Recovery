@@ -18,7 +18,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <!-- Custom CSS & JS -->
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 
 <body>
@@ -181,11 +181,8 @@
                 <a class="nav-item" data-tab="tab-contingency">
                     <i class="ph ph-warning-circle"></i> Contingency Matrix
                 </a>
-                <a class="nav-item" data-tab="tab-preselection">
-                    <i class="ph ph-sliders"></i> Preselection
-                </a>
                 <a class="nav-item" data-tab="tab-group-def">
-                    <i class="ph ph-tree-structure"></i> Group Definition
+                    <i class="ph ph-tree-structure"></i> Bus & Priority
                 </a>
                 <a class="nav-item" data-tab="tab-alarm-log">
                     <i class="ph ph-bell-ringing"></i> Alarm Log
@@ -349,34 +346,21 @@
                 </div>
             </div>
 
-            <!-- 5. PRESELECTION -->
+            <!-- 5. BUS & PRIORITY -->
             <div id="tab-group-def" class="tab-pane">
-                <h2 style="margin-top:0">Group Definition</h2>
+                <h2 style="margin-top:0">Bus Grouping & Priority</h2>
                 <div class="glass-panel">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Feeder Group</th>
-                                <th>Assigned Loads</th>
+                                <th>Bus</th>
+                                <th>Load ID</th>
+                                <th class="admin-only" style="display:none; text-align:center;">Actual Priority</th>
+                                <th class="admin-only" style="display:none; text-align:center;">Operator Priority</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td>SS1</td>
-                                <td>L101</td>
-                            </tr>
-                            <tr>
-                                <td>SS2</td>
-                                <td>L201</td>
-                            </tr>
-                            <tr>
-                                <td>SS3</td>
-                                <td>L301, L302, L303, L304, L305</td>
-                            </tr>
-                            <tr>
-                                <td>SS4</td>
-                                <td>L401, L402, L403, L404, L405</td>
-                            </tr>
+                        <tbody id="bus-priority-body">
+                            <!-- Injected by JS -->
                         </tbody>
                     </table>
                 </div>
@@ -502,7 +486,7 @@
         </div>
     </div>
 
-    <script src="/static/main.js?v=2"></script>
+    <script src="/static/main.js?v=4"></script>
 </body>
 
 </html>

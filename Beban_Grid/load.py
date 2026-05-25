@@ -6,7 +6,7 @@ from pymodbus.client import ModbusTcpClient
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-plc_ip = '192.168.1.143'
+plc_ip = '192.168.100.195'
 client = ModbusTcpClient(plc_ip, port=502)
 client.connect()
 
@@ -114,11 +114,21 @@ sim_time = 19.0
 init_pct = get_load_pct(sim_time % 24)
 current_loads = [max(1.0, float(m * init_pct)) for m in max_vals]
 
-# RESET PLC OVERRIDES & COILS SAAT STARTUP
+# RESET PLC OVERRIDES & COILS SAAT STARTUP — tunggu sampai koneksi berhasil
 print("Membersihkan memori PLC (Override & Breaker)...")
-client.write_registers(address=ADDR_OVERRIDE, values=[0]*12)
-for name in load_names:
-    client.write_coil(LOAD_COILS[name], False)
+while True:
+    try:
+        if client.connect():
+            client.write_registers(address=ADDR_OVERRIDE, values=[0]*12)
+            for name in load_names:
+                client.write_coil(LOAD_COILS[name], False)
+            print("PLC berhasil dibersihkan. Simulator siap!")
+            break
+        else:
+            print("Menunggu koneksi PLC untuk inisialisasi...")
+    except Exception as e:
+        print(f"Menunggu PLC... ({e})")
+    import time as _t; _t.sleep(2)
 
 init_total = sum(current_loads)
 
