@@ -42,6 +42,14 @@ graph TD
     W -- Control Override & Breaker Trip --> S
 ```
 
+### 2.1 Logika Kontrol PLC (EcoStruxure Machine Expert - Basic)
+Proyek ini mengintegrasikan simulasi PLC menggunakan skema *Ladder Logic* (LD) standar industri. Berdasarkan pemetaan *Memory Word* (%MW), kontrol breaker beban dan generator menggunakan implementasi kontak fail-safe dan override:
+
+*   **Logika Generator (Rung 0 - 3):**
+    Di sisi PLC, generator direpresentasikan menggunakan kontak *Normally Open* (`| |`) untuk status sensor fisiknya (contoh: `%M10` untuk PLTA) yang diserikan dengan kontak *Normally Closed* (`| / |`) sebagai *override* kontrol dari SCADA (contoh: `%M50`). Jika SCADA memerintahkan *trip* (menulis nilai logika `1` ke `%M50`), aliran daya akan terputus dan mematikan *coil* output utama `%Q0.0`.
+*   **Logika Pelepasan Beban / Load Shedding (Rung 4 - 15):**
+    Beban di lapangan seperti `L101` hingga `L405` terhubung menggunakan satu instruksi utama *Normally Closed* (`| / |`) dari Holding Register (contoh: `%M21` untuk L101). Secara *default*, selama jaringan stabil (logika `0`), *coil* beban `%Q0.4` tetap menyala. Saat algoritma optimasi MILP mendeteksi UFLS, Python akan menembakkan logika `1` ke alamat tersebut, membuat kontak PLC terbuka (*open circuit*) secara instan dan mematikan suplai beban. Umpan balik status pemadaman ini langsung dibaca kembali oleh SCADA melalui memori `%M60`.
+
 ---
 
 ## 3. Pemodelan Matematis dan Fisika (*Physics Engine*)
@@ -102,7 +110,12 @@ $$ \sum_{i=1}^{N} (1 - x_i) \cdot P_i \ge P_{Defisit} $$
 
 Sistem melakukan komputasi MILP ini menggunakan pustaka resolusi matematis (`PuLP`) dalam orde milidetik, lalu memberikan sinyal eksekusi *trip relay* ke *holding register* Modbus seketika.
 
-### 4.2 Matriks Kontingensi N-1 Secara *Live*
+### 4.2 Pencegahan Osilasi (Anti-Oscillation) & Dynamic Priority Swapping
+Ketika sistem berada dalam kondisi stabil namun masih mengalami defisit pasokan (sebagian beban dipadamkan), menjalankan algoritma secara berulang dapat menyebabkan **osilasi status breaker** (kondisi di mana dua beban dengan prioritas yang sama bergantian menyala-mati tiap detik). 
+
+Untuk mengatasi hal ini, algoritma memberikan "**Diskon Penalti 10%**" ($W_i \times 0.90$) pada fungsi objektif khusus untuk beban yang **saat ini sedang padam**. Diskon matematis ini memastikan solver cenderung "mempertahankan" beban yang sudah padam daripada menukarnya dengan beban lain berprioritas sama, sehingga osilasi terhindari. Namun, karena diskon ini tidak melebihi selisih antar tingkat prioritas dasar, jika operator mengubah prioritas beban yang mati menjadi lebih tinggi (misalnya VIP), algoritma secara cerdas dan instan akan melakukan *Dynamic Priority Swapping*—menyalakan kembali VIP tersebut dan menumbalkan beban prioritas rendah lain sebagai gantinya.
+
+### 4.3 Matriks Kontingensi N-1 Secara *Live*
 Bahkan pada frekuensi stabil 50 Hz, MILP terus menghitung probabilitas terburuk (*predictive analysis*) pada skenario kegagalan tunggal (N-1). Jika generator terbesar terputus, matriks akan menampilkan *Feeder* prioritas rendah mana saja yang di-"*Preselection*" merah untuk siap dikorbankan.
 
 ---
@@ -142,3 +155,16 @@ Sistem ini didesain sebagai arsitektur *multi-threaded* dan memerlukan beberapa 
    `http://127.0.0.1:5000/?role=admin`
    
    > **Catatan Pengujian:** Tekan tuas **"TRIP"** pada salah satu unit generator besar (seperti PLTGU) untuk mensimulasikan *contingency event*, lalu saksikan bagaimana *governor* primer merespons jatuhnya frekuensi dan algoritma MILP menyeimbangkan grid seketika melalui kurva grafik *real-time*.
+
+---
+
+## 7. Referensi Teknis Lanjutan (*Deep Dive Documentation*)
+
+Proyek ini terstruktur ke dalam 3 modul pilar utama. Untuk mendalami perhitungan matematis, arsitektur kode, hingga pengalamatan I/O, silakan meninjau berkas dokumentasi spesifik pada setiap folder:
+
+1. ⚙️ **[Physics Engine & Dinamika Kelistrikan (Beban_Grid/README.md)](Beban_Grid/README.md)**
+   Penjelasan detail mengenai *Swing Equation*, Integrasi Euler, dan algoritma *Governor Droop / AGC* untuk simulasi inersia.
+2. 🧠 **[SCADA Master & HMI Web (Scada_22-5-26/README.md)](Scada_22-5-26/README.md)**
+   Penjelasan komprehensif formulasi matematika *Mixed-Integer Linear Programming* (MILP), Anti-Osilasi, arsitektur *backend* Flask/Socket.IO, dan algoritma grafis UI.
+3. 🏭 **[Virtual PLC & Skema Industri (VirtualPLC/README.md)](VirtualPLC/README.md)**
+   Spesifikasi perangkat keras EcoStruxure Machine Expert - Basic, peta alamat memori (*Memory Word Mapping*), dan kupas tuntas implementasi *fail-safe Ladder Logic*.
