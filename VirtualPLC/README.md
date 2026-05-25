@@ -36,22 +36,42 @@ Pemrograman PLC menggunakan *Ladder Diagram* (LD) dengan prinsip keamanan gagal 
 
 ### 3.1. Rung 0-3 (Kontrol Generator)
 
-![Generator Rungs](VirtualPLC_Dynamic-17.png)
+![Generator Rungs 1](VirtualPLC_Dynamic-17.png)
+*(Gambar: Implementasi Rung 0-2 untuk Generator 1A, 1B, dan 2A)*
+
+![Generator Rungs 2](VirtualPLC_Dynamic-18.png)
+*(Gambar: Kelanjutan Rung 3 untuk Generator 2B, memperlihatkan pola fail-safe kontrol)*
 
 ```ladder
    %M10 (Status Fisik)      %M50 (Perintah SCADA)     %Q0.0 (Breaker Gen)
 ---| |-----------------------| / |-----------------------( )---
 ```
+**Penjelasan Skema Generator:**
 *   Daya hanya tersalurkan ke jaringan (`%Q0.x` ON) jika sensor fisik menyatakan *Online* (`%M1x` = 1) **DAN** SCADA tidak sedang mengirimkan perintah interupsi (`%M5x` = 0).
+*   Jika operator di *Control Room* menekan tombol *Trip*, nilai `%M5x` berubah menjadi `1`, yang seketika membuka kontak Normally Closed (`| / |`) dan mematikan generator dari sistem jaringan secara paksa.
 
 ### 3.2. Rung 4-15 (Kontrol Beban / UFLS)
 
-![Load Rungs](VirtualPLC_Dynamic-18.png)
+![Load Rungs L101-L201](VirtualPLC_Dynamic-18.png)
+*(Gambar: Rung 4-5 yang mengontrol Feeder Prioritas L101 dan L201)*
+
+![Load Rungs L301-L401](VirtualPLC_Dynamic-19.png)
+*(Gambar: Rung 6-7 memperlihatkan pemetaan register %M3x dan %M4x ke beban industri)*
+
+![Load Rungs L102-L202](VirtualPLC_Dynamic-20.png)
+*(Gambar: Rung 8-9 mengatur pemutusan rangkaian distribusi lapis kedua)*
+
+![Load Rungs L302-L403](VirtualPLC_Dynamic-21.png)
+*(Gambar: Rung 10-12 memperlihatkan kelanjutan skema pelepasan untuk klaster beban C dan D)*
+
+![Load Rungs L404-L405](VirtualPLC_Dynamic-22.png)
+*(Gambar: Rung 13-15 sebagai penjaga gawang fasilitas terakhir yang diikat pada ujung blok memori %M)*
 
 ```ladder
    %M21 (Perintah UFLS MILP)                            %Q0.4 (Suplai Beban L101)
 ---| / |-----------------------------------------------( )---
 ```
-*   Secara *default*, register `%M2x` bernilai `0`. Karena menggunakan kontak *Normally Closed* (`| / |`), aliran listrik tetap tersambung sehingga *coil* `%Q0.x` menyala.
-*   Ketika perhitungan matematis di Python menyatakan bahwa sistem sedang kritis dan menumbalkan beban L101, Python akan mengubah `%M21` menjadi `1`. 
-*   Secara instan, sirkuit terbuka (kontak terputus), mematikan *coil* `%Q0.4`, dan beban lepas dari jaringan listrik.
+**Penjelasan Skema Pelepasan Beban (UFLS):**
+*   Secara *default*, register UFLS (contoh: `%M21`) bernilai `0`. Karena menggunakan kontak *Normally Closed* (`| / |`), arus logika tetap mengalir dan *coil* penyulang beban (`%Q0.4`) terus menyala.
+*   Ketika algoritma *Mixed-Integer Linear Programming* (MILP) di server Python mendeteksi anjloknya frekuensi akibat defisit daya, ia akan menumbalkan beban prioritas rendah dengan menuliskan nilai `1` ke register `%M21`.
+*   Secara instan (dalam satuan milidetik), sirkuit PLC terbuka (kontak terputus), *coil* beban mati, dan defisit jaringan terselamatkan. Status nyata matinya *coil* ini dikirim kembali ke SCADA lewat register pembaca `%M60` untuk divisualisasikan pada elemen UI secara *real-time*.
