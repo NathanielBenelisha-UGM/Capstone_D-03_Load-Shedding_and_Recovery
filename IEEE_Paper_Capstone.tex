@@ -1,0 +1,124 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{SCADA-Based Optimal Under-Frequency Load Shedding and Recovery Using Mixed-Integer Linear Programming in a Digital Twin Environment\\
+}
+
+% Data Anggota Kelompok
+\author{
+\IEEEauthorblockN{1\textsuperscript{st} Muhammad Akbar Maulana}
+\IEEEauthorblockA{\textit{23/514723/TK/56512} \\
+\textit{Department of Electrical Engineering} \\
+\textit{Universitas Gadjah Mada}\\
+Yogyakarta, Indonesia \\
+muhammadakbarmaulana@mail.ugm.ac.id}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Muhammad Basel Fawaz Sigit}
+\IEEEauthorblockA{\textit{23/516761/TK/56809} \\
+\textit{Department of Electrical Engineering} \\
+\textit{Universitas Gadjah Mada}\\
+Yogyakarta, Indonesia \\
+muhammadbaselfawazsigit@mail.ugm.ac.id}
+\and
+\IEEEauthorblockN{3\textsuperscript{rd} Nathaniel Benelisha}
+\IEEEauthorblockA{\textit{23/517262/TK/56883} \\
+\textit{Department of Electrical Engineering} \\
+\textit{Universitas Gadjah Mada}\\
+Yogyakarta, Indonesia \\
+nathanielbenelisha@mail.ugm.ac.id}
+\and
+\IEEEauthorblockN{4\textsuperscript{th} Ara Dwi Narendra}
+\IEEEauthorblockA{\textit{23/522807/TK/57752} \\
+\textit{Department of Electrical Engineering} \\
+\textit{Universitas Gadjah Mada}\\
+Yogyakarta, Indonesia \\
+aradwinarendra@mail.ugm.ac.id}
+}
+
+\maketitle
+
+\begin{abstract}
+The stability of a power grid heavily relies on the delicate balance between generation and load demand. When a major contingency occurs, such as a generator trip, the system frequency drops rapidly, threatening a complete blackout. Conventional Under-Frequency Load Shedding (UFLS) schemes often rely on static, pre-determined shedding thresholds which can lead to over-shedding or under-shedding. This paper proposes a dynamic, optimal UFLS and recovery scheme integrated within a Supervisory Control and Data Acquisition (SCADA) system. A Digital Twin of the electrical grid was developed using Python to model the swing equation and governor droop control in real-time. A Mixed-Integer Linear Programming (MILP) algorithm was formulated to minimize load shedding penalties by dynamically selecting non-critical loads based on real-time network deficits. The control logic was bridged through a Virtual Programmable Logic Controller (PLC) via Modbus TCP/IP. Furthermore, a highly interactive Web Human-Machine Interface (HMI) was deployed to provide real-time transient visualization and contingency matrices. Simulation results demonstrate that the proposed MILP-based SCADA system successfully arrests frequency decline and restores the system to a nominal 50.0 Hz with minimal economic disruption.
+\end{abstract}
+
+\begin{IEEEkeywords}
+SCADA, Under-Frequency Load Shedding, Mixed-Integer Linear Programming, Digital Twin, Modbus TCP, Smart Grid
+\end{IEEEkeywords}
+
+\section{Introduction}
+Power system resilience is defined by its ability to withstand severe disturbances. A sudden loss of generation creates a severe active power deficit, causing the system frequency to plummet. If the frequency drops below the critical operational threshold, it may trigger cascading failures leading to a widespread blackout \cite{intro1}. 
+
+To prevent such catastrophic events, Under-Frequency Load Shedding (UFLS) is employed as the ultimate safety net. Traditional UFLS methods utilize static relays set at fixed frequency thresholds to sequentially trip feeders. However, this rigid approach fails to account for the dynamic priority of loads (e.g., hospitals vs. residential areas) and often sheds more power than necessary. 
+
+Recent advancements in mathematical optimization and Industrial Internet of Things (IIoT) allow for the implementation of dynamic, adaptive load shedding schemes. This research presents the design and implementation of a SCADA-based Digital Twin that executes optimal UFLS using Mixed-Integer Linear Programming (MILP). By integrating a physics engine, a Virtual PLC, and a web-based HMI, the proposed architecture provides a scalable, enterprise-grade solution for modern smart grid management.
+
+\section{System Architecture}
+The proposed architecture consists of three highly coupled subsystems: the Physics Engine, the Virtual PLC, and the SCADA Master / HMI.
+
+\subsection{Digital Twin and Physics Engine}
+Because physical high-voltage grids cannot be safely tested for severe contingencies in a laboratory setting, a Digital Twin was constructed in Python. The physics engine simulates the rotational inertia of the grid generators (Hydro, Solar, Gas, Wind) and calculates the Rate of Change of Frequency (RoCoF) using the swing equation:
+\begin{equation}
+\frac{df}{dt} = \frac{f_{nom}}{2 \cdot H_{eff}} \times (\Delta P_{pu} - P_{damping}) \label{eq:rocof}
+\end{equation}
+where $f_{nom}$ is the nominal frequency (50.0 Hz), $H_{eff}$ is the effective inertia of the grid, $\Delta P_{pu}$ is the active power deficit, and $P_{damping}$ represents the inherent load damping. The engine utilizes Euler integration at 100ms intervals to continuously update the system frequency.
+
+\subsection{Virtual PLC and Modbus TCP/IP}
+To emulate industrial hardware, Schneider Electric EcoStruxure Machine Expert was used to create a Virtual PLC. The PLC houses the fail-safe ladder logic designed to physically interrupt the load coils (\%Q0.4) upon receiving trip signals (\%M21). The Python Physics Engine and the SCADA Master communicate with this Virtual PLC asynchronously via the Modbus TCP/IP protocol over port 502.
+
+\section{Optimal UFLS Formulation}
+The core intelligence of the SCADA Master is the MILP solver, executed using the \texttt{PuLP} library. The objective is to minimize the total penalty of disconnected loads.
+
+\subsection{Objective Function}
+Each load $i$ consumes active power $P_i$ and is assigned a priority weight $W_i$. A binary decision variable $x_i \in \{0, 1\}$ dictates the load status ($1$ for connected, $0$ for shedded). The optimization objective is formulated as:
+\begin{equation}
+\min \sum_{i=1}^{N} (1 - x_i) \cdot P_i \cdot W_i \label{eq:objective}
+\end{equation}
+
+\subsection{System Constraints}
+The MILP must satisfy the power deficit constraint to arrest the frequency drop. The total power of the shedded loads must be greater than or equal to the network deficit $P_{Defisit}$:
+\begin{equation}
+\sum_{i=1}^{N} (1 - x_i) \cdot P_i \ge P_{Defisit} \label{eq:constraint}
+\end{equation}
+
+\subsection{Anti-Oscillation and Dynamic Swapping}
+To prevent "breaker oscillation" where the solver continuously swaps two loads of identical priority, a 10\% discount penalty is applied to already-shedded loads. This logic ensures mechanical stability while allowing operators to dynamically promote a load to a "Critical" status via the HMI, forcing the MILP to seamlessly swap the blackout target in real-time.
+
+\section{Web-Based Control Room (HMI)}
+The human-machine interface acts as the central observability platform. Built on Flask and Socket.IO, it streams telemetry data to the frontend DOM at 10 frames per second. 
+The interface features:
+\begin{itemize}
+\item \textbf{Transient Plotting:} Real-time visualization of frequency curves using Chart.js to monitor the frequency Nadir.
+\item \textbf{Dynamic SLD:} A Single Line Diagram constructed with SVG where feeder lines glow green or flash red based on the real-time Modbus coil statuses.
+\item \textbf{Contingency Matrix:} An N-1 predictive algorithm that highlights the next vulnerable load blocks in red, assuming the largest active generator fails.
+\end{itemize}
+
+\section{Simulation and Results}
+The system was tested by simulating a catastrophic loss of the combined-cycle gas turbine (PLTGU). 
+\begin{enumerate}
+\item \textbf{Initial State:} Grid operating at 50.0 Hz.
+\item \textbf{Contingency:} PLTGU trips. Frequency drops rapidly.
+\item \textbf{MILP Action:} At 49.50 Hz, the SCADA Master identifies the optimal load combination to shed based on the weights $W_i$. Modbus registers are written, and the Virtual PLC interrupts the feeder circuits within 100ms.
+\item \textbf{Recovery:} The remaining generators, specifically the Hydro plant, engage their Governor Droop Control to increase mechanical power. The frequency stabilizes and recovers to the nominal 50.0 Hz.
+\end{enumerate}
+The MILP successfully prevented a complete system collapse while maintaining power to critical facilities.
+
+\section{Conclusion}
+This capstone project successfully demonstrates the integration of an advanced MILP optimization algorithm within a real-time, SCADA-based Digital Twin environment. By replacing static UFLS methods with dynamic, penalty-aware logic, power grid resilience is significantly improved. The use of Modbus TCP and Docker containerization further proves the architecture's readiness for deployment in actual industrial IoT environments.
+
+\begin{thebibliography}{00}
+\bibitem{intro1} P. Kundur, \textit{Power System Stability and Control}. New York, NY, USA: McGraw-Hill, 1994.
+\bibitem{ufls2} U. U. Hashmi et al., "Optimal Under-Frequency Load Shedding in Smart Grids," \textit{IEEE Transactions on Smart Grid}, vol. 11, no. 5, pp. 4310-4320, 2020.
+\end{thebibliography}
+
+\end{document}
