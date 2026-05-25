@@ -37,7 +37,7 @@ Skrip `app.py` bertindak sebagai *SCADA Master Poller* sekaligus Web Server.
 
 Sistem ini terhubung dengan Virtual PLC melalui protokol TCP/IP. Jika Anda memindahkan server ke komputer lain atau IP PLC berubah (misalnya akibat DHCP), Anda **wajib** memperbarui konfigurasi IP pada dua file utama:
 
-1.  **Pada `Scada_22-5-26/app.py`:** Cari baris 15.
+1.  **Pada `SCADA/app.py`:** Cari baris 15.
     ```python
     PLC_IP = '192.168.100.195' # Ubah ke IP PLC Anda
     ```
