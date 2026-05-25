@@ -590,26 +590,55 @@ function updateLoads(data) {
 }
 
 
+let lastRawMsg = '';
+
 function logAlarm(msg) {
     if (!msg) return;
+
+    // Ekstrak pesan murni tanpa timestamp untuk deduplikasi
+    const bracketIndex = msg.indexOf(']');
+    const rawMsg = bracketIndex !== -1 ? msg.substring(bracketIndex + 2) : msg;
+    
+    // Jangan append jika pesannya sama persis (mencegah spam 10x per detik)
+    if (rawMsg === lastRawMsg) return;
+    lastRawMsg = rawMsg;
+
+    const isError = msg.includes('DEFISIT') || msg.includes('TRIPPED') || msg.includes('UFLS');
+    const isSuccess = msg.includes('RESTORASI');
+    let color = 'inherit';
+    if (isError) color = 'var(--danger-red)';
+    else if (isSuccess) color = 'var(--success-green)';
+
+    // 1. Update Panel Alarm Kecil (Kiri Bawah)
     const logDiv = document.getElementById('alarm-log-content');
-    if (!logDiv) return;
-
-    const div = document.createElement('div');
-    div.style.padding = '8px 0';
-    div.style.borderBottom = '1px solid var(--glass-border)';
-    div.style.fontFamily = 'var(--font-mono)';
-    div.style.fontSize = '0.85rem';
-
-    if (msg.includes('DEFISIT') || msg.includes('TRIPPED')) {
-        div.style.color = 'var(--danger-red)';
-    } else if (msg.includes('RESTORASI')) {
-        div.style.color = 'var(--success-green)';
+    if (logDiv) {
+        const div = document.createElement('div');
+        div.style.padding = '8px 0';
+        div.style.borderBottom = '1px solid var(--glass-border)';
+        div.style.fontFamily = 'var(--font-mono)';
+        div.style.fontSize = '0.85rem';
+        div.style.color = color;
+        div.innerText = msg;
+        
+        logDiv.prepend(div);
+        if (logDiv.children.length > 50) logDiv.lastChild.remove();
     }
 
-    div.innerText = msg;
-    logDiv.prepend(div);
-    if (logDiv.children.length > 50) logDiv.lastChild.remove();
+    // 2. Update Tab History Log Utama
+    const histDiv = document.getElementById('history-log-content');
+    if (histDiv) {
+        const hdiv = document.createElement('div');
+        hdiv.style.padding = '12px 0';
+        hdiv.style.borderBottom = '1px dashed rgba(255,255,255,0.1)';
+        hdiv.style.color = color;
+        
+        const timestamp = bracketIndex !== -1 ? msg.substring(0, bracketIndex + 1) : '';
+        hdiv.innerHTML = `<span style="color:var(--text-muted); margin-right:15px;">${timestamp}</span> ${rawMsg}`;
+        
+        histDiv.prepend(hdiv);
+        // Simpan memori lebih panjang (500 log) untuk tab history
+        if (histDiv.children.length > 500) histDiv.lastChild.remove();
+    }
 }
 
 // --- CONTINGENCY MATRIX ---
