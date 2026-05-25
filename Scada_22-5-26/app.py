@@ -220,13 +220,13 @@ def background_monitoring():
             shed_set = set()
             log_msg = "Sistem Stabil."
             
-            # Jika ada defisit kapasitas ATAU frekuensi kritis (UFLS <= 49.5 Hz)
-            if capacity_deficit > 0 or freq_hz <= 49.5:
+            # UFLS Trigger (Under-Frequency Load Shedding)
+            # Hanya memutus beban jika frekuensi benar-benar anjlok (Simulasi fisis riil)
+            if freq_hz <= 49.5:
                 calc_deficit = max(capacity_deficit, 0)
-                if freq_hz <= 49.5:
-                    calc_deficit = max(calc_deficit, currently_shed_mw + (potential_total_demand * 0.1)) # Force shed more
+                calc_deficit = max(calc_deficit, currently_shed_mw + (potential_total_demand * 0.1)) # Force shed more
                     
-                if currently_shed_mw >= calc_deficit and freq_hz > 49.5:
+                if currently_shed_mw >= calc_deficit and freq_hz > 49.0:
                     # Sudah cukup beban yang dilepas, pertahankan kondisi trip agar tidak berganti-ganti (oscillation)
                     shed_set = current_tripped.copy()
                     shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
@@ -239,7 +239,7 @@ def background_monitoring():
                         shed_set = {load['name'] for load in live_loads}
                         
                     shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
-                    log_msg = (f"DEFISIT/UFLS! Melepas {len(shed_set)} beban "
+                    log_msg = (f"UFLS TRIGGERED! Melepas {len(shed_set)} beban "
                                f"({shed_mw:.0f}MW): {', '.join(sorted(shed_set))}")
                            
             else:
