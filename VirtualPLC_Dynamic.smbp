@@ -1,9 +1,9 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ProjectDescriptor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <ProjectVersion>2.6.0.0</ProjectVersion>
   <ManagementLevel>FunctLevelMan17_0</ManagementLevel>
   <Name>VirtualPLC_Dynamic</Name>
-  <FullName>E:\CAPSTONE-NIEL\VirtualPLC_Dynamic.smbp</FullName>
+  <FullName>E:\CAPSTONE-D03-2026\VirtualPLC_Dynamic.smbp</FullName>
   <CurrentCultureName>en-GB</CurrentCultureName>
   <SoftwareConfiguration>
     <Pous>

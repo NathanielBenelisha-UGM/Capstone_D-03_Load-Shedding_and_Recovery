@@ -147,7 +147,7 @@ Sistem ini mendukung dua metode eksekusi: secara manual (Terminal) atau otomatis
 ### Opsi A: Deployment Sekali Klik (Menggunakan Docker)
 Jalur instalasi terbaik dan terekam standar industri.
 1. Pastikan **Docker Desktop** sudah menyala di sistem Anda.
-2. Buka terminal di folder root (`CAPSTONE-NIEL`), lalu eksekusi:
+2. Buka terminal di folder root (`CAPSTONE-D03-2026`), lalu eksekusi:
    ```bash
    docker-compose up -d --build
    ```
@@ -190,7 +190,7 @@ Sistem ini menggunakan arsitektur *Web Server* terdistribusi (Flask diikat pada 
 
 ### Opsi D: Akses HMI via Internet Publik (Ngrok / Cloud)
 Untuk presentasi jarak jauh tanpa perlu konfigurasi VPS/Cloud yang rumit, Anda bisa melakukan *Tunneling* ke server SCADA lokal Anda menggunakan Ngrok.
-1. Unduh **ngrok.exe** dan letakkan di dalam folder `CAPSTONE-NIEL`.
+1. Unduh **ngrok.exe** dan letakkan di dalam folder `CAPSTONE-D03-2026`.
 2. Di PowerShell, tambahkan Auth Token Anda (hanya sekali):
    ```powershell
    .\ngrok config add-authtoken <TOKEN_ANDA>
