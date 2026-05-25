@@ -138,11 +138,24 @@ Human Machine Interface (HMI) yang berada pada `main.js` & `index.html` berperan
 
 ## 6. Panduan Implementasi dan Penggunaan
 
-Sistem ini didesain sebagai arsitektur *multi-threaded* dan memerlukan beberapa tahapan instalasi/eksekusi lokal.
-**PENTING (Konfigurasi IP):** Jika Anda menggunakan PLC yang sesungguhnya atau berpindah komputer, Anda **wajib** mengubah konfigurasi `PLC_IP = '192.168.100.195'` (atau IP target lainnya) yang terdapat pada baris atas file `Beban_Grid/load.py` dan `Scada_22-5-26/app.py`. (Gunakan `127.0.0.1` jika menggunakan Simulator lokal).
+Sistem ini mendukung dua metode eksekusi: secara manual (Terminal) atau otomatis (Docker).
+**PENTING (Konfigurasi IP):** Jika menggunakan PLC sesungguhnya, atur variabel `PLC_IP` sesuai IP target Anda. Jika menggunakan Simulator lokal OpenModScan di Windows, gunakan `127.0.0.1` (Manual) atau `host.docker.internal` (Docker).
+
+### Opsi A: Deployment Sekali Klik (Menggunakan Docker)
+Jalur instalasi terbaik dan terekam standar industri.
+1. Pastikan **Docker Desktop** sudah menyala di sistem Anda.
+2. Buka terminal di folder root (`CAPSTONE-NIEL`), lalu eksekusi:
+   ```bash
+   docker-compose up -d --build
+   ```
+   Docker akan merakit (*build*) lingkungan terisolasi untuk *Physics Engine* dan *SCADA Master* lalu menyalakannya di latar belakang.
+3. Buka *web browser*: `http://127.0.0.1:5000/?role=admin`
+4. Untuk mematikan sistem: `docker-compose down`
+
+### Opsi B: Eksekusi Manual (Terminal Python)
 
 1. **Jalankan Aplikasi PLC Virtual:**
-   Pastikan OpenModScan atau *Modbus PLC simulator* lainnya aktif pada TCP Port standar (502).
+   Pastikan OpenModScan aktif pada TCP Port standar (502).
    
 2. **Inisialisasi *Physics Engine*:**
    Buka Terminal 1 dan jalankan mesin dinamis kelistrikan.
@@ -164,6 +177,13 @@ Sistem ini didesain sebagai arsitektur *multi-threaded* dan memerlukan beberapa 
    `http://127.0.0.1:5000/?role=admin`
    
    > **Catatan Pengujian:** Tekan tuas **"TRIP"** pada salah satu unit generator besar (seperti PLTGU) untuk mensimulasikan *contingency event*, lalu saksikan bagaimana *governor* primer merespons jatuhnya frekuensi dan algoritma MILP menyeimbangkan grid seketika melalui kurva grafik *real-time*.
+
+### Opsi C: Akses HMI dari Komputer Lain (LAN / WiFi)
+Sistem ini menggunakan arsitektur *Web Server* terdistribusi (Flask diikat pada `0.0.0.0`), sehingga Control Room dapat diakses dari laptop, tablet, atau *smartphone* lain selama berada di jaringan yang sama.
+1. Pastikan kedua perangkat terhubung ke WiFi atau LAN yang sama.
+2. Di komputer *Server* (yang menjalankan Docker/Python), buka *Command Prompt* lalu ketik `ipconfig` untuk mencari **IPv4 Address** (contoh: `192.168.1.15`).
+3. Di perangkat *Client* (komputer teman Anda), buka *web browser* dan ketik: `http://192.168.1.15:5000/?role=admin`
+*(Pastikan Windows Firewall di komputer Server tidak memblokir Port 5000).*
 
 ---
 
