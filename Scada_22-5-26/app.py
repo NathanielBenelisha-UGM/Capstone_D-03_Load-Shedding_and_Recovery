@@ -50,20 +50,20 @@ ADDR_FREQ = 54   # %MW54 — frekuensi × 100 (5000 = 50.00 Hz)
 
 LOADS = [
     # %MW0–%MW5 -> Prioritas 2 (non-esensial)
-    {'name': 'L101', 'priority': 4, 'coil_write': 21, 'mw_addr': 0, 'max_mw': 20},
-    {'name': 'L201', 'priority': 2, 'coil_write': 22, 'mw_addr': 1, 'max_mw': 20},
-    {'name': 'L303', 'priority': 2, 'coil_write': 23, 'mw_addr': 2, 'max_mw': 15},
-    {'name': 'L304', 'priority': 2, 'coil_write': 24, 'mw_addr': 3, 'max_mw': 20},
-    {'name': 'L305', 'priority': 2, 'coil_write': 25, 'mw_addr': 4, 'max_mw': 30},
-    {'name': 'L401', 'priority': 2, 'coil_write': 26, 'mw_addr': 5, 'max_mw': 30},
+    {'name': 'L101', 'priority': 2, 'default_priority': 2, 'coil_write': 21, 'mw_addr': 0, 'max_mw': 20},
+    {'name': 'L201', 'priority': 2, 'default_priority': 2, 'coil_write': 22, 'mw_addr': 1, 'max_mw': 20},
+    {'name': 'L303', 'priority': 2, 'default_priority': 2, 'coil_write': 23, 'mw_addr': 2, 'max_mw': 15},
+    {'name': 'L304', 'priority': 2, 'default_priority': 2, 'coil_write': 24, 'mw_addr': 3, 'max_mw': 20},
+    {'name': 'L305', 'priority': 2, 'default_priority': 2, 'coil_write': 25, 'mw_addr': 4, 'max_mw': 30},
+    {'name': 'L401', 'priority': 2, 'default_priority': 2, 'coil_write': 26, 'mw_addr': 5, 'max_mw': 30},
     # %MW6–%MW8 -> Prioritas 3 (esensial)
-    {'name': 'L301', 'priority': 3, 'coil_write': 31, 'mw_addr': 6, 'max_mw': 5},
-    {'name': 'L302', 'priority': 3, 'coil_write': 32, 'mw_addr': 7, 'max_mw': 10},
-    {'name': 'L402', 'priority': 3, 'coil_write': 33, 'mw_addr': 8, 'max_mw': 5},
+    {'name': 'L301', 'priority': 3, 'default_priority': 3, 'coil_write': 31, 'mw_addr': 6, 'max_mw': 5},
+    {'name': 'L302', 'priority': 3, 'default_priority': 3, 'coil_write': 32, 'mw_addr': 7, 'max_mw': 10},
+    {'name': 'L402', 'priority': 3, 'default_priority': 3, 'coil_write': 33, 'mw_addr': 8, 'max_mw': 5},
     # %MW9–%MW11 -> Prioritas 4 (kritis)
-    {'name': 'L403', 'priority': 4, 'coil_write': 41, 'mw_addr': 9, 'max_mw': 10},
-    {'name': 'L404', 'priority': 4, 'coil_write': 42, 'mw_addr': 10, 'max_mw': 15},
-    {'name': 'L405', 'priority': 4, 'coil_write': 43, 'mw_addr': 11, 'max_mw': 20},
+    {'name': 'L403', 'priority': 4, 'default_priority': 4, 'coil_write': 41, 'mw_addr': 9, 'max_mw': 10},
+    {'name': 'L404', 'priority': 4, 'default_priority': 4, 'coil_write': 42, 'mw_addr': 10, 'max_mw': 15},
+    {'name': 'L405', 'priority': 4, 'default_priority': 4, 'coil_write': 43, 'mw_addr': 11, 'max_mw': 20},
 ]
 
 MILP_PRIORITY_WEIGHTS = {2: 1, 3: 10, 4: 100}
@@ -249,21 +249,37 @@ def background_monitoring():
                     if not hasattr(app, 'restore_timer'):
                         app.restore_timer = 0
                         
-                    if 49.5 < freq_hz <= 50.5:
+                    # Pastikan tidak ada beban yang sedang soft-start (menunggu generator mengejar)
+                    is_settled = True
+                    for l in live_loads:
+                        if l['name'] not in shed_set:
+                            # Jika beban sudah on tapi aktualnya masih < 90% dari potensialnya, berarti masih soft-start
+                            if l['mw'] > 5 and l['actual_mw'] < l['mw'] * 0.9:
+                                is_settled = False
+                                break
+                                
+                    if 49.5 < freq_hz <= 50.5 and is_settled:
                         app.restore_timer += 1
-                        if app.restore_timer >= 3: # Tunggu 3 siklus agar generator menyala & stabil
+                        if app.restore_timer >= 3: # Tunggu 3 siklus agar stabil
+                            # Hitung reserve berdasarkan beban yang PASTI akan ditarik setelah soft-start selesai
+                            expected_on_demand = sum(l['mw'] for l in live_loads if l['name'] not in shed_set)
+                            true_reserve = available_capacity - expected_on_demand
+                            
                             for load in live_loads:
                                 if load['name'] in shed_set:
-                                    if load['max_mw'] <= spinning_reserve:
+                                    if load['max_mw'] <= true_reserve:
                                         shed_set.remove(load['name'])
                                         log_msg = f"RESTORASI: Menyalakan kembali {load['name']} (Maks {load['max_mw']} MW)"
                                         app.restore_timer = 0
-                                        break # Hanya 1 per siklus setelah stabil
+                                        break # Hanya 1 per siklus
                         else:
-                            log_msg = f"Menunggu stabilitas frekuensi... ({app.restore_timer}/3)"
+                            log_msg = f"Menunggu stabilitas sistem... ({app.restore_timer}/3)"
                     else:
                         app.restore_timer = 0
-                        log_msg = "Menunggu frekuensi di antara 49.5 - 50.5 untuk restorasi..."
+                        if not is_settled:
+                            log_msg = "Menunggu beban/generator mencapai setpoint (Soft-Start)..."
+                        else:
+                            log_msg = "Menunggu frekuensi di antara 49.5 - 50.5 untuk restorasi..."
 
             # Hitung Preselection Matrix (N-1 Generators)
             contingency_matrix = {}
@@ -290,6 +306,7 @@ def background_monitoring():
                         'status':   'TRIPPED' if tripped else 'NORMAL',
                         'mw':       load['actual_mw'],
                         'priority': load['priority'],
+                        'default_priority': load.get('default_priority', 2),
                     })
                     
             app.last_load_statuses = load_statuses
