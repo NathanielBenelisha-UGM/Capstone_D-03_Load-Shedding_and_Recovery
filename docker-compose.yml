@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  scada_master:
+    build: 
+      context: ./Scada_22-5-26
+      dockerfile: Dockerfile
+    container_name: scada_master
+    ports:
+      - "5000:5000"
+    environment:
+      # Ubah IP ini sesuai dengan IP PLC/OpenModScan Anda
+      # Gunakan host.docker.internal jika OpenModScan berjalan di Windows host
+      - PLC_IP=host.docker.internal
+      - PLC_PORT=502
+    restart: unless-stopped
+    depends_on:
+      - physics_engine
+
+  physics_engine:
+    build: 
+      context: ./Beban_Grid
+      dockerfile: Dockerfile
+    container_name: physics_engine
+    environment:
+      # Ubah IP ini sesuai dengan IP PLC/OpenModScan Anda
+      - PLC_IP=host.docker.internal
+      - PLC_PORT=502
+    restart: unless-stopped

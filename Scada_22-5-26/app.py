@@ -9,11 +9,13 @@ app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+import os
+
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-PLC_IP = '192.168.100.195'
-PORT   = 502
+PLC_IP = os.getenv('PLC_IP', '192.168.100.195')
+PORT   = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(PLC_IP, port=PORT)
 
 plc_lock = threading.Lock()
