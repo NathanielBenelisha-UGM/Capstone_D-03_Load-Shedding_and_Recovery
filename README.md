@@ -53,6 +53,11 @@ graph TD
 Proyek ini mengintegrasikan simulasi PLC menggunakan skema *Ladder Logic* (LD) standar industri. Berdasarkan pemetaan *Memory Word* (%MW), kontrol breaker beban dan generator menggunakan implementasi kontak fail-safe dan override:
 
 ![Ladder Logic Generator](VirtualPLC/VirtualPLC_Dynamic-17.png)
+![Ladder Logic Generator](VirtualPLC/VirtualPLC_Dynamic-18.png)
+![Ladder Logic Load Shedding](VirtualPLC/VirtualPLC_Dynamic-19.png)
+![Ladder Logic Load Shedding](VirtualPLC/VirtualPLC_Dynamic-20.png)
+![Ladder Logic Load Shedding](VirtualPLC/VirtualPLC_Dynamic-21.png)
+![Ladder Logic Load Shedding](VirtualPLC/VirtualPLC_Dynamic-22.png)
 
 *   **Logika Generator (Rung 0 - 3):**
     Di sisi PLC, generator direpresentasikan menggunakan kontak *Normally Open* (`| |`) untuk status sensor fisiknya (contoh: `%M10` untuk PLTA) yang diserikan dengan kontak *Normally Closed* (`| / |`) sebagai *override* kontrol dari SCADA (contoh: `%M50`). Jika SCADA memerintahkan *trip* (menulis nilai logika `1` ke `%M50`), aliran daya akan terputus dan mematikan *coil* output utama `%Q0.0`.
