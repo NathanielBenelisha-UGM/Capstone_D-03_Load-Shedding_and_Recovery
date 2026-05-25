@@ -605,9 +605,11 @@ function logAlarm(msg) {
 
     const isError = msg.includes('DEFISIT') || msg.includes('TRIPPED') || msg.includes('UFLS');
     const isSuccess = msg.includes('RESTORASI');
+    const isWarning = msg.includes('RE-PRIORITIZED');
     let color = 'inherit';
     if (isError) color = 'var(--danger-red)';
     else if (isSuccess) color = 'var(--success-green)';
+    else if (isWarning) color = '#f59e0b'; // amber/orange
 
     // 1. Update Panel Alarm Kecil (Kiri Bawah)
     const logDiv = document.getElementById('alarm-log-content');
@@ -624,20 +626,25 @@ function logAlarm(msg) {
         if (logDiv.children.length > 50) logDiv.lastChild.remove();
     }
 
-    // 2. Update Tab History Log Utama
-    const histDiv = document.getElementById('history-log-content');
-    if (histDiv) {
-        const hdiv = document.createElement('div');
-        hdiv.style.padding = '12px 0';
-        hdiv.style.borderBottom = '1px dashed rgba(255,255,255,0.1)';
-        hdiv.style.color = color;
-        
-        const timestamp = bracketIndex !== -1 ? msg.substring(0, bracketIndex + 1) : '';
-        hdiv.innerHTML = `<span style="color:var(--text-muted); margin-right:15px;">${timestamp}</span> ${rawMsg}`;
-        
-        histDiv.prepend(hdiv);
-        // Simpan memori lebih panjang (500 log) untuk tab history
-        if (histDiv.children.length > 500) histDiv.lastChild.remove();
+    // 2. Update Tab History Log Utama (HANYA KETIKA ADA GANGGUAN / EVENT PENTING)
+    // Filter out pesan rutin seperti "Sistem Stabil." atau "Menunggu..."
+    const isRoutineMessage = rawMsg.includes('Sistem Stabil') || rawMsg.includes('Menunggu');
+    
+    if (!isRoutineMessage) {
+        const histDiv = document.getElementById('history-log-content');
+        if (histDiv) {
+            const hdiv = document.createElement('div');
+            hdiv.style.padding = '12px 0';
+            hdiv.style.borderBottom = '1px dashed rgba(255,255,255,0.1)';
+            hdiv.style.color = color;
+            
+            const timestamp = bracketIndex !== -1 ? msg.substring(0, bracketIndex + 1) : '';
+            hdiv.innerHTML = `<span style="color:var(--text-muted); margin-right:15px;">${timestamp}</span> <strong>${rawMsg}</strong>`;
+            
+            histDiv.prepend(hdiv);
+            // Simpan memori lebih panjang (500 log) untuk tab history
+            if (histDiv.children.length > 500) histDiv.lastChild.remove();
+        }
     }
 }
 

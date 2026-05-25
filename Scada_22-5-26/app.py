@@ -93,10 +93,11 @@ def solve_milp_shedding(deficit, live_loads, current_tripped=set()):
         prio_level = l.get('priority', 2)
         weight = MILP_PRIORITY_WEIGHTS.get(prio_level, 1)
         
-        # Anti-Oscillation: Jika beban sudah mati (tripped), buat "biaya" mempertahankannya mati jadi SANGAT MURAH.
-        # Ini mencegah MILP menukar-nukar beban mati.
+        # Anti-Oscillation: Jika beban sudah mati (tripped), berikan sedikit diskon biaya (10%)
+        # Ini mencegah MILP menukar-nukar beban mati yang memiliki prioritas SAMA.
+        # Namun diskon ini tidak boleh terlalu besar agar tidak mengalahkan beban dengan prioritas BERBEDA.
         if l['name'] in current_tripped:
-            weight = weight * 0.01 
+            weight = weight * 0.90 
             
         objective.append(weight * shed_vars[l['name']])
         
@@ -233,7 +234,6 @@ def background_monitoring():
                     log_msg = f"DEFISIT TERTANGANI. Mempertahankan {len(shed_set)} beban mati ({shed_mw:.0f}MW)."
                 else:
                     # Perlu run MILP karena defisit bertambah atau frekuensi kritis
-                    # Passing current_tripped to prevent oscillation
                     shed_set, milp_status = solve_milp_shedding(calc_deficit, live_loads, current_tripped)
                     if milp_status != 'Optimal':
                         shed_set = {load['name'] for load in live_loads}
@@ -241,6 +241,22 @@ def background_monitoring():
                     shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
                     log_msg = (f"UFLS TRIGGERED! Melepas {len(shed_set)} beban "
                                f"({shed_mw:.0f}MW): {', '.join(sorted(shed_set))}")
+
+            elif capacity_deficit > 0:
+                # Kondisi Defisit Stabil (Frekuensi normal, tapi kapasitas masih kurang)
+                # Evaluasi secara diam-diam: Apakah user mengubah prioritas sehingga konfigurasi trip perlu ditukar?
+                calc_deficit = max(capacity_deficit, 0)
+                new_shed_set, milp_status = solve_milp_shedding(calc_deficit, live_loads, current_tripped)
+                
+                if new_shed_set != current_tripped and milp_status == 'Optimal':
+                    # Ternyata MILP menemukan solusi yang lebih baik (user mengganti prioritas load yang trip menjadi penting)
+                    shed_set = new_shed_set
+                    shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
+                    log_msg = f"RE-PRIORITIZED! Menukar beban mati untuk mengamankan VIP ({shed_mw:.0f}MW)."
+                else:
+                    # Tidak ada perubahan prioritas, pertahankan yang mati
+                    shed_set = current_tripped.copy()
+                    # Jangan ganggu log_msg agar tidak spam
                            
             else:
                 # Kapasitas mencukupi. Coba restore beban yang trip secara bertahap (1 per 1)
