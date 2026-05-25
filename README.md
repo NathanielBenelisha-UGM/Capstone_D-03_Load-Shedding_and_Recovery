@@ -9,7 +9,7 @@ Proyek ini mengusung pengembangan *Real-Time Digital Twin* berskala industri unt
 ## 1. Pendahuluan
 Stabilitas frekuensi pada sistem tenaga listrik sangat bergantung pada keseimbangan antara pembangkitan daya aktif dan beban. Gangguan atau hilangnya unit pembangkit secara tiba-tiba dapat menyebabkan defisit daya yang memicu penurunan frekuensi sistem (*frequency drop*). Jika tidak diatasi dengan mekanisme pelepasan beban yang tepat dan proporsional, sistem akan mengalami *blackout* atau mati listrik total. Proyek ini mendemonstrasikan secara interaktif penyelesaian masalah tersebut melalui implementasi komputasi komprehensif mulai dari *physics engine* hingga algoritma cerdas berbasis optimasi matematis.
 
-### 🌟 Fitur Utama Sistem
+### Fitur Utama Sistem
 1.  **Dinamika Grid Real-Time (10 FPS):** Pemodelan persamaan ayunan (*Swing Equation*) dengan frekuensi komputasi orde milidetik.
 2.  **MILP Load Shedding:** Pelepasan beban tidak lagi menggunakan skema buta/statis, melainkan perhitungan optimasi matematis menggunakan *Solver* `PuLP` untuk meminimalisir kerugian prioritas.
 3.  **Matriks Kontingensi N-1:** Prediksi probabilitas kegagalan generator terbesar secara *live* untuk menghasilkan *Preselection* target pemadaman.
