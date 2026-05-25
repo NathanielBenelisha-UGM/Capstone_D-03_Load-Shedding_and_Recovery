@@ -301,9 +301,9 @@ while True:
             agc_gain = 0.05 if reserve >= 0 else 0.01 
             freq += (F_NOM - freq) * agc_gain
             
-        # CLAMP FREQUENCY (Tidak pernah under 49.5 dan over 50.5)
+        # CLAMP FREQUENCY (Allow transients to be visible)
         if total_avail > 0:
-            freq = max(49.5, min(50.5, freq))
+            freq = max(48.0, min(52.0, freq))
         else:
             # Jika semua generator mati (Blackout), frekuensi jatuh ke 0
             freq = 0.0
