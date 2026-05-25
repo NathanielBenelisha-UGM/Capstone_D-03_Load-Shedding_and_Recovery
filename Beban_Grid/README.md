@@ -13,6 +13,7 @@ Beban di Indonesia jarang statis. Sistem menggunakan model sinusoidal fluktuatif
 Ketika sebuah grid stabil, total pasokan daya mekanik dari turbin harus seimbang dengan total konsumsi beban elektrikal. Jika terjadi *Network Deficit* ($\Delta P = P_{Gen} - P_{Load} < 0$), grid akan mulai memakan energi kinetik yang tersimpan pada massa putar seluruh poros turbin generator yang sedang *online*.
 
 Dihitung laju jatuhnya frekuensi (RoCoF / Rate of Change of Frequency) dengan rumus:
+
 $$
 \frac{df}{dt} = \frac{f_{nom}}{2 \cdot H_{eff}} \times (\Delta P_{pu} - P_{damping})
 $$
@@ -20,12 +21,14 @@ $$
 *   **$P_{damping}$**: *Load Damping Factor*. Kompensasi mandiri beban; ketika frekuensi drop tegangan turun, motor industri memutar lebih lambat dan mengurangi tarikan energinya.
 
 Metode **Integrasi Euler** (berbasis orde waktu diskrit $\Delta t$) mengeksekusi perhitungan pembaruan frekuensi tiap siklus (100ms):
+
 $$
 f_{t+\Delta t} = f_t + \left( \frac{df}{dt} \times \Delta t \right)
 $$
 
 ### 2.2. Governor Droop Control (Kontrol Primer)
 Saat frekuensi menurun, sensor pada masing-masing generator merespons dengan membuka katup mekanis secara proporsional terhadap *error*. 
+
 $$
 \Delta P = -\left( \frac{f - 50.0}{50.0} \right) \times \frac{1}{R} \times P_{Rated}
 $$

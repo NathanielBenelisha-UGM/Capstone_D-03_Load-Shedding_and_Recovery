@@ -10,14 +10,17 @@ Jika frekuensi grid (seperti yang dihitung oleh *Physics Engine*) jatuh menyentu
 Tujuan (*Objective*): Meminimalisir dampak kerugian akibat pemadaman berdasar level utilitas.
 *   **Variabel Keputusan ($x_i$):** Bernilai biner. $x_i = 1$ berarti beban dipertahankan, $x_i = 0$ berarti dipadamkan.
 *   **Fungsi Objektif:**
-$$
+
+    $$
     \min \sum_{i=1}^{N} (1 - x_i) \cdot P_i \cdot W_i
     $$
+
     Di mana $P_i$ adalah daya (MW) aktual dari beban tersebut, dan $W_i$ adalah bobot kepentingan fasilitas (Prioritas 4 = Sangat Penting, berbobot 100x lebih mahal untuk dipadamkan daripada Prioritas 2).
 
 *   **Kendala Kelistrikan (*Constraint*):**
     Total daya beban yang dikorbankan ($x_i=0$) harus memenuhi besaran *Capacity Deficit*.
-$$
+
+    $$
     \sum_{i=1}^{N} (1 - x_i) \cdot P_i \ge P_{Defisit}
     $$
 
