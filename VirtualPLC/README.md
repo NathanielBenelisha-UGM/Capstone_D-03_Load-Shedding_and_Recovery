@@ -11,6 +11,8 @@ Berdasarkan dokumen `VirtualPLC_Dynamic`, sistem disimulasikan menggunakan arsit
     *   `TM3AI8/G` (Modul Analog Input, 8 Channel)
 *   **Protokol Komunikasi:** Ethernet (ETH1) dikonfigurasi sebagai **Modbus TCP Server** (Port 502) untuk dapat dihubungkan dengan skrip Python.
 
+![Architecture PLC](VirtualPLC_Dynamic-02.png)
+
 ## 2. Peta Memori (Memory Word Mapping)
 Integrasi antara mesin fisika (`load.py`), SCADA (`app.py`), dan Virtual PLC berjalan mulus berkat arsitektur pemetaan *Holding Registers* (`%MW`) berikut:
 
@@ -33,6 +35,9 @@ Untuk melakukan pemutusan beban (*Under-Frequency Load Shedding*), SCADA menemba
 Pemrograman PLC menggunakan *Ladder Diagram* (LD) dengan prinsip keamanan gagal (*fail-safe*):
 
 ### 3.1. Rung 0-3 (Kontrol Generator)
+
+![Generator Rungs](VirtualPLC_Dynamic-17.png)
+
 ```ladder
    %M10 (Status Fisik)      %M50 (Perintah SCADA)     %Q0.0 (Breaker Gen)
 ---| |-----------------------| / |-----------------------( )---
@@ -40,6 +45,9 @@ Pemrograman PLC menggunakan *Ladder Diagram* (LD) dengan prinsip keamanan gagal 
 *   Daya hanya tersalurkan ke jaringan (`%Q0.x` ON) jika sensor fisik menyatakan *Online* (`%M1x` = 1) **DAN** SCADA tidak sedang mengirimkan perintah interupsi (`%M5x` = 0).
 
 ### 3.2. Rung 4-15 (Kontrol Beban / UFLS)
+
+![Load Rungs](VirtualPLC_Dynamic-18.png)
+
 ```ladder
    %M21 (Perintah UFLS MILP)                            %Q0.4 (Suplai Beban L101)
 ---| / |-----------------------------------------------( )---
