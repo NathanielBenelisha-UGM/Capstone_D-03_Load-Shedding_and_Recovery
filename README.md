@@ -188,9 +188,32 @@ Sistem ini menggunakan arsitektur *Web Server* terdistribusi (Flask diikat pada 
 3. Di perangkat *Client* (komputer teman Anda), buka *web browser* dan ketik: `http://192.168.1.15:5000/?role=admin`
 *(Pastikan Windows Firewall di komputer Server tidak memblokir Port 5000).*
 
+### Opsi D: Akses HMI via Internet Publik (Ngrok / Cloud)
+Untuk presentasi jarak jauh tanpa perlu konfigurasi VPS/Cloud yang rumit, Anda bisa melakukan *Tunneling* ke server SCADA lokal Anda menggunakan Ngrok.
+1. Unduh **ngrok.exe** dan letakkan di dalam folder `CAPSTONE-NIEL`.
+2. Di PowerShell, tambahkan Auth Token Anda (hanya sekali):
+   ```powershell
+   .\ngrok config add-authtoken <TOKEN_ANDA>
+   ```
+3. Nyalakan server SCADA secara lokal, lalu di terminal baru jalankan:
+   ```powershell
+   .\ngrok http 5000
+   ```
+4. Ngrok akan menghasilkan URL publik (contoh: `https://abcd-1234.ngrok-free.app`). Siapapun di seluruh dunia yang mengklik tautan tersebut akan terhubung langsung ke Control Room Anda secara *real-time*.
+
 ---
 
-## 7. Referensi Teknis Lanjutan (*Deep Dive Documentation*)
+## 7. Prosedur Mematikan Sistem (*Graceful Shutdown*)
+Untuk mencegah beban memori berlebih saat komputer dihidupkan ulang, pastikan Anda mematikan sistem dengan urutan berikut:
+1. **Matikan Ngrok (Jika Aktif):** Buka terminal Ngrok dan tekan `Ctrl + C`.
+2. **Matikan SCADA & Physics Engine:** 
+   * Jika menggunakan Docker: Buka terminal dan jalankan `docker-compose down`.
+   * Jika menggunakan Manual: Buka terminal `load.py` dan `app.py`, lalu tekan `Ctrl + C` pada masing-masing terminal.
+3. **Tutup Virtual PLC:** Matikan aplikasi OpenModScan atau Schneider Machine Expert.
+
+---
+
+## 8. Referensi Teknis Lanjutan (*Deep Dive Documentation*)
 
 Proyek ini terstruktur ke dalam 3 modul pilar utama. Untuk mendalami perhitungan matematis, arsitektur kode, hingga pengalamatan I/O, silakan meninjau berkas dokumentasi spesifik pada setiap folder:
 
