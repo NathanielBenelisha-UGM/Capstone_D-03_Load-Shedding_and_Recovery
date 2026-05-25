@@ -12,7 +12,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-PLC_IP = '192.168.1.143'
+PLC_IP = '192.168.100.195'
 PORT   = 502
 client = ModbusTcpClient(PLC_IP, port=PORT)
 
@@ -50,20 +50,20 @@ ADDR_FREQ = 54   # %MW54 — frekuensi × 100 (5000 = 50.00 Hz)
 
 LOADS = [
     # %MW0–%MW5 -> Prioritas 2 (non-esensial)
-    {'name': 'L101', 'priority': 2, 'coil_write': 21, 'mw_addr': 0},
-    {'name': 'L201', 'priority': 2, 'coil_write': 22, 'mw_addr': 1},
-    {'name': 'L303', 'priority': 2, 'coil_write': 23, 'mw_addr': 2},
-    {'name': 'L304', 'priority': 2, 'coil_write': 24, 'mw_addr': 3},
-    {'name': 'L305', 'priority': 2, 'coil_write': 25, 'mw_addr': 4},
-    {'name': 'L401', 'priority': 2, 'coil_write': 26, 'mw_addr': 5},
+    {'name': 'L101', 'priority': 4, 'coil_write': 21, 'mw_addr': 0, 'max_mw': 20},
+    {'name': 'L201', 'priority': 2, 'coil_write': 22, 'mw_addr': 1, 'max_mw': 20},
+    {'name': 'L303', 'priority': 2, 'coil_write': 23, 'mw_addr': 2, 'max_mw': 15},
+    {'name': 'L304', 'priority': 2, 'coil_write': 24, 'mw_addr': 3, 'max_mw': 20},
+    {'name': 'L305', 'priority': 2, 'coil_write': 25, 'mw_addr': 4, 'max_mw': 30},
+    {'name': 'L401', 'priority': 2, 'coil_write': 26, 'mw_addr': 5, 'max_mw': 30},
     # %MW6–%MW8 -> Prioritas 3 (esensial)
-    {'name': 'L301', 'priority': 3, 'coil_write': 31, 'mw_addr': 6},
-    {'name': 'L302', 'priority': 3, 'coil_write': 32, 'mw_addr': 7},
-    {'name': 'L402', 'priority': 3, 'coil_write': 33, 'mw_addr': 8},
+    {'name': 'L301', 'priority': 3, 'coil_write': 31, 'mw_addr': 6, 'max_mw': 5},
+    {'name': 'L302', 'priority': 3, 'coil_write': 32, 'mw_addr': 7, 'max_mw': 10},
+    {'name': 'L402', 'priority': 3, 'coil_write': 33, 'mw_addr': 8, 'max_mw': 5},
     # %MW9–%MW11 -> Prioritas 4 (kritis)
-    {'name': 'L403', 'priority': 4, 'coil_write': 41, 'mw_addr': 9},
-    {'name': 'L404', 'priority': 4, 'coil_write': 42, 'mw_addr': 10},
-    {'name': 'L405', 'priority': 4, 'coil_write': 43, 'mw_addr': 11},
+    {'name': 'L403', 'priority': 4, 'coil_write': 41, 'mw_addr': 9, 'max_mw': 10},
+    {'name': 'L404', 'priority': 4, 'coil_write': 42, 'mw_addr': 10, 'max_mw': 15},
+    {'name': 'L405', 'priority': 4, 'coil_write': 43, 'mw_addr': 11, 'max_mw': 20},
 ]
 
 MILP_PRIORITY_WEIGHTS = {2: 1, 3: 10, 4: 100}
@@ -78,13 +78,6 @@ load_memory     = {}
 def solve_milp_shedding(deficit, live_loads, current_tripped=set()):
     import pulp
     
-    # Priority Weights: Makin besar, makin tidak mau di-trip (Level 4 paling dipertahankan)
-    PRIORITIES = {
-        'L101': 1,   'L201': 1,   'L303': 1,   'L304': 1,   'L305': 1,   'L401': 1,   # Level 2 (Non-Essential, First to shed)
-        'L301': 10,  'L302': 10,  'L402': 10,                                         # Level 3 (Essential)
-        'L403': 100, 'L404': 100, 'L405': 100                                         # Level 4 (Critical/VIP, Last to shed)
-    }
-    
     prob = pulp.LpProblem("LoadShedding", pulp.LpMinimize)
     
     shed_vars = {}
@@ -97,7 +90,8 @@ def solve_milp_shedding(deficit, live_loads, current_tripped=set()):
     # Objective: Minimize cost of shedding
     objective = []
     for l in live_loads:
-        weight = PRIORITIES.get(l['name'], 10)
+        prio_level = l.get('priority', 2)
+        weight = MILP_PRIORITY_WEIGHTS.get(prio_level, 1)
         
         # Anti-Oscillation: Jika beban sudah mati (tripped), buat "biaya" mempertahankannya mati jadi SANGAT MURAH.
         # Ini mencegah MILP menukar-nukar beban mati.
@@ -255,21 +249,21 @@ def background_monitoring():
                     if not hasattr(app, 'restore_timer'):
                         app.restore_timer = 0
                         
-                    if freq_hz > 49.8 and spinning_reserve > 5:
+                    if 49.5 < freq_hz <= 50.5:
                         app.restore_timer += 1
-                        if app.restore_timer >= 3: # Tunggu 3 siklus (3 detik) agar generator menyala & stabil
+                        if app.restore_timer >= 3: # Tunggu 3 siklus agar generator menyala & stabil
                             for load in live_loads:
                                 if load['name'] in shed_set:
-                                    if load['mw'] <= spinning_reserve - 2:
+                                    if load['max_mw'] <= spinning_reserve:
                                         shed_set.remove(load['name'])
-                                        log_msg = f"RESTORASI: Menyalakan kembali {load['name']} ({load['mw']} MW)"
+                                        log_msg = f"RESTORASI: Menyalakan kembali {load['name']} (Maks {load['max_mw']} MW)"
                                         app.restore_timer = 0
                                         break # Hanya 1 per siklus setelah stabil
                         else:
-                            log_msg = f"Menunggu generator stabil... ({app.restore_timer}/3)"
+                            log_msg = f"Menunggu stabilitas frekuensi... ({app.restore_timer}/3)"
                     else:
                         app.restore_timer = 0
-                        log_msg = "Menunggu frekuensi stabil & spinning reserve untuk restorasi..."
+                        log_msg = "Menunggu frekuensi di antara 49.5 - 50.5 untuk restorasi..."
 
             # Hitung Preselection Matrix (N-1 Generators)
             contingency_matrix = {}
@@ -292,9 +286,10 @@ def background_monitoring():
                     tripped = load['name'] in shed_set
                     client.write_coil(load['coil_write'], value=tripped)
                     load_statuses.append({
-                        'id': load['name'],
-                        'status': 'TRIPPED' if tripped else 'NORMAL',
-                        'mw': load['actual_mw'],
+                        'id':       load['name'],
+                        'status':   'TRIPPED' if tripped else 'NORMAL',
+                        'mw':       load['actual_mw'],
+                        'priority': load['priority'],
                     })
                     
             app.last_load_statuses = load_statuses
@@ -430,6 +425,62 @@ def handle_set_gen_interrupt(data):
         })
     except Exception as e:
         print(f"[INJECT GEN] Error: {e}")
+
+
+# =========================================================
+# SOCKET — UPDATE PRIORITY BEBAN (MILP WEIGHT)
+# =========================================================
+def persist_priority_to_file(load_name, new_prio):
+    import re
+    try:
+        with open(__file__, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Cari dan replace angka di: {'name': 'L101', 'priority': X, 
+        pattern = r"(\{'name':\s*'" + load_name + r"',\s*'priority':\s*)\d+"
+        new_content = re.sub(pattern, r"\g<1>" + str(new_prio), content)
+        
+        with open(__file__, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        print(f"[PERSIST] {load_name} priority updated to {new_prio} in app.py")
+    except Exception as e:
+        print(f"[PERSIST] Failed to rewrite app.py: {e}")
+
+@socketio.on('set_load_priority')
+def handle_set_load_priority(data):
+    """
+    Update prioritas MILP untuk beban tertentu secara in-memory.
+    Priority: 2 = Low (NON-ESENSIAL), 3 = Medium (ESENSIAL), 4 = High (KRITIS)
+    Semakin tinggi priority, MILP semakin menghindari mematikan beban tersebut.
+
+    data = {'load': 'L101', 'priority': 3}
+    """
+    load_id  = data.get('load')
+    priority = int(data.get('priority', 2))
+    priority = max(2, min(4, priority))   # clamp ke range valid 2-4
+
+    updated = False
+    for load in LOADS:
+        if load['name'] == load_id:
+            old = load['priority']
+            if old != priority:
+                load['priority'] = priority
+                updated = True
+                print(f"[PRIORITY] {load_id}: {old} → {priority}")
+                persist_priority_to_file(load_id, priority)
+            break
+
+    if not updated:
+        print(f"[PRIORITY] Load '{load_id}' tidak ditemukan.")
+        return
+
+    label = {2: 'LOW (Non-Esensial)', 3: 'MEDIUM (Esensial)', 4: 'HIGH (Kritis)'}[priority]
+    socketio.emit('interrupt_ack', {
+        'type':    'priority',
+        'message': f"Priority {load_id} diperbarui → {label}",
+        'load':    load_id,
+        'priority': priority,
+    })
 
 
 # =========================================================
