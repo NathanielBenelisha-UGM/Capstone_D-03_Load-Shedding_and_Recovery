@@ -270,6 +270,51 @@ function updateSLD(data) {
         let shadow = (!isGridActive || isTripped) ? 'rgba(255,68,68,0.6)' : 'rgba(0,255,170,0.6)';
         let flow = isGridActive && !isTripped;
         colorize(`New\\${l.id}.ElmLod`, color, shadow, flow);
+
+        const gMain = svg.getElementById(`New\\${l.id}.ElmLod`);
+        // Find text element globally just in case it's not inside gMain
+        let dynText = svg.querySelector(`text.dynamic-data[data-id="${l.id}"]`);
+        if (!dynText) {
+            const origText = Array.from(svg.querySelectorAll('text')).find(t => !t.classList.contains('dynamic-data') && t.textContent.trim() === l.id);
+            if (origText) {
+                origText.setAttribute('fill', color);
+                dynText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                dynText.setAttribute('class', 'dynamic-data');
+                dynText.setAttribute('data-id', l.id);
+                dynText.setAttribute('x', origText.getAttribute('x') || 0);
+                let origY = parseFloat(origText.getAttribute('y') || 0);
+                dynText.setAttribute('y', origY + 12);
+                dynText.setAttribute('font-size', '9');
+                dynText.setAttribute('font-weight', 'bold');
+                dynText.setAttribute('font-family', 'var(--font-mono)');
+                
+                // Append directly after origText so it shares same coordinate space if possible
+                if (origText.parentNode) {
+                    origText.parentNode.appendChild(dynText);
+                }
+            }
+        }
+        if (dynText) {
+            let xPos = dynText.getAttribute('x') || 0;
+            dynText.innerHTML = ''; // clear
+
+            let tspan1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            tspan1.setAttribute('x', xPos);
+            tspan1.setAttribute('dy', '0');
+            tspan1.textContent = `${l.mw} MW`;
+            
+            let tspan2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            tspan2.setAttribute('x', xPos);
+            tspan2.setAttribute('dy', '1.2em');
+            tspan2.textContent = `Prio: ${l.priority}`;
+
+            dynText.appendChild(tspan1);
+            dynText.appendChild(tspan2);
+            dynText.setAttribute('fill', '#fff');
+        }
+        // Also update original text color if it exists
+        const origText = Array.from(svg.querySelectorAll('text')).find(t => !t.classList.contains('dynamic-data') && t.textContent.trim() === l.id);
+        if (origText) origText.setAttribute('fill', color);
     });
 
     let isBus1Active = false;
@@ -303,12 +348,39 @@ function updateSLD(data) {
             }
 
             gMain.querySelectorAll('text').forEach(t => {
-                if (t.textContent.trim() === '~') {
+                if (!t.classList.contains('dynamic-data') && t.textContent.trim() === '~') {
                     if (!isTripped) t.classList.add('gen-spin');
                     else t.classList.remove('gen-spin');
                 }
             });
         }
+        
+        // Find generator text globally
+        let dynText = svg.querySelector(`text.dynamic-data[data-id="${g.name}"]`);
+        if (!dynText) {
+            const origText = Array.from(svg.querySelectorAll('text')).find(t => !t.classList.contains('dynamic-data') && t.textContent.trim() === g.name);
+            if (origText) {
+                dynText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                dynText.setAttribute('class', 'dynamic-data');
+                dynText.setAttribute('data-id', g.name);
+                dynText.setAttribute('x', origText.getAttribute('x') || 0);
+                let origY = parseFloat(origText.getAttribute('y') || 0);
+                dynText.setAttribute('y', origY + 16);
+                dynText.setAttribute('font-size', '12');
+                dynText.setAttribute('font-weight', 'bold');
+                dynText.setAttribute('font-family', 'var(--font-mono)');
+                
+                if (origText.parentNode) {
+                    origText.parentNode.appendChild(dynText);
+                }
+            }
+        }
+        if (dynText) {
+            dynText.textContent = `${g.mw} MW`;
+            dynText.setAttribute('fill', '#fff');
+        }
+        const origText = Array.from(svg.querySelectorAll('text')).find(t => !t.classList.contains('dynamic-data') && t.textContent.trim() === g.name);
+        if (origText) origText.setAttribute('fill', color);
     });
 
     // Topology-aware grid lighting
@@ -449,7 +521,7 @@ const BUS_MAP = {
 function updateLoads(data) {
     const tbody = document.getElementById('load-table-body');
     const busTbody = document.getElementById('bus-priority-body');
-    const showPriority = IS_ADMIN;
+    const showPriority = new URLSearchParams(window.location.search).get('role') === 'admin';
 
     let htmlLoad = '';
     const isBusTableEmpty = busTbody && busTbody.children.length === 0;
@@ -466,11 +538,19 @@ function updateLoads(data) {
 
         // --- 2. Bus Grouping & Priority Table ---
         const prio = l.priority || 2;
+        const defPrio = l.default_priority || 2;
         const prioClass = `prio-${prio}`;
+        const defPrioClass = `prio-${defPrio}`;
         const prioLabel = { 2: 'LOW', 3: 'MED', 4: 'HIGH' }[prio] || 'LOW';
+        const defPrioLabel = { 2: 'LOW', 3: 'MED', 4: 'HIGH' }[defPrio] || 'LOW';
         const busName = BUS_MAP[l.id] || 'Unknown';
 
         if (isBusTableEmpty) {
+            const loadPrioCell = showPriority ? `
+                <td style="text-align:center;">
+                    <span class="priority-badge ${defPrioClass}">${defPrio} - ${defPrioLabel}</span>
+                </td>` : '';
+
             const actualCell = showPriority ? `
                 <td style="text-align:center;">
                     <span class="priority-badge ${prioClass}" id="prio-badge-${l.id}">${prio} - ${prioLabel}</span>
@@ -483,6 +563,7 @@ function updateLoads(data) {
                            id="prio-input-${l.id}"
                            value="${prio}"
                            title="2=Low  3=Med  4=High"
+                           onchange="sendSinglePriority('${l.id}', this.value)"
                     >
                 </td>` : '';
 
@@ -490,6 +571,7 @@ function updateLoads(data) {
                 <tr>
                     <td style="font-weight:bold; color:var(--primary-blue)">${busName}</td>
                     <td style="font-family:var(--font-mono)">${l.id}</td>
+                    ${loadPrioCell}
                     ${actualCell}
                     ${operatorCell}
                 </tr>`;
@@ -653,12 +735,18 @@ function sendOverrides() {
     alert('✅ Sensor Override Configuration sent to PLC!');
 }
 
-// --- PRIORITY UPDATE ---
-window.sendPriority = function (loadId, rawVal) {
-    const prio = Math.max(2, Math.min(4, parseInt(rawVal) || 2));
+window.sendSinglePriority = function (loadId, rawVal) {
     if (!socket) return;
+    const prio = parseInt(rawVal) || 2;
     socket.emit('set_load_priority', { load: loadId, priority: prio });
-    console.log(`Priority updated: ${loadId} → ${prio}`);
+    console.log(`Auto-update Priority: ${loadId} → ${prio}`);
+};
+
+window.sendSinglePriority = function (loadId, rawVal) {
+    if (!socket) return;
+    const prio = parseInt(rawVal) || 2;
+    socket.emit('set_load_priority', { load: loadId, priority: prio });
+    console.log(`Auto-update Priority: ${loadId} → ${prio}`);
 };
 
 window.sendAllPriorities = function () {
