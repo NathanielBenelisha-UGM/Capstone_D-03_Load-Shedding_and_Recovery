@@ -14,7 +14,7 @@ import os
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-PLC_IP = os.getenv('PLC_IP', '192.168.1.13')
+PLC_IP = os.getenv('PLC_IP', '192.168.100.195')
 PORT   = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(PLC_IP, port=PORT)
 
