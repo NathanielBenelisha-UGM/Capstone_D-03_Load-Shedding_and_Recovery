@@ -7,7 +7,7 @@ from pymodbus.client import ModbusTcpClient
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-plc_ip = os.getenv('PLC_IP', '192.168.1.13')
+plc_ip = os.getenv('PLC_IP', '192.168.100.195')
 plc_port = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(plc_ip, port=plc_port)
 client.connect()
