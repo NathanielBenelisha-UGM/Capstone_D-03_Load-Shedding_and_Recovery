@@ -7,7 +7,7 @@ from pymodbus.client import ModbusTcpClient
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-plc_ip = os.getenv('PLC_IP', '192.168.100.195')
+plc_ip = os.getenv('PLC_IP', '192.168.1.13')
 plc_port = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(plc_ip, port=plc_port)
 client.connect()
@@ -53,7 +53,7 @@ GEN_CFG = {
         'rated': 75.0, 'min': 5.0,
         'H': 5.0,       # Tinggi
         'droop': 0.05,
-        'ramp': 15.0,   # RAMP DIPERCEPAT
+        'ramp': 0.5,    # REALISTIS: ~1.0 MW per detik (Air butuh waktu membuka katup penstock)
         'mw_addr': 30,
     },
     'PLTS': {
@@ -61,7 +61,7 @@ GEN_CFG = {
         'rated': 25.0, 'min': 0.0,
         'H': 0.5,       # BESS virtual inertia
         'droop': 0.02,
-        'ramp': 25.0,   # BESS INSTANT
+        'ramp': 5.0,    # BESS SANGAT CEPAT: ~20.0 MW per detik (Baterai inverter merespons instan)
         'mw_addr': 31,
     },
     'PLTGU': {
@@ -69,7 +69,7 @@ GEN_CFG = {
         'rated': 75.0, 'min': 15.0,
         'H': 4.0,       # Sedang
         'droop': 0.04,
-        'ramp': 15.0,   # RAMP DIPERCEPAT
+        'ramp': 0.5,    # REALISTIS: ~1.0 MW per detik (Turbin gas/uap butuh waktu spooling)
         'mw_addr': 32,
     },
     'PLTB': {
@@ -77,7 +77,7 @@ GEN_CFG = {
         'rated': 25.0, 'min': 0.0,
         'H': 1.0,       # DFIG inertia
         'droop': 0.04,
-        'ramp': 10.0,   # RAMP DIPERCEPAT
+        'ramp': 1.0,    # REALISTIS: ~4.0 MW per detik (Pitch control baling-baling)
         'mw_addr': 33,
     },
 }
@@ -288,29 +288,36 @@ while True:
         D = 1.5
         damping_p = D * ((freq - F_NOM) / F_NOM)
 
-        if h_eff > 0.1:
-            dfdt = (F_NOM / (2.0 * h_eff)) * (delta_p_pu - damping_p)
-        else:
-            dfdt = (delta_p_pu - damping_p) * 2.0   # Fast dynamics for low inertia
-            
-        freq += dfdt * DT
-        
-        # Secondary control (AGC) - Memulihkan frekuensi perlahan ke 50 Hz
-        # Berjalan asalkan frekuensi tidak dalam kondisi Blackout (< 45)
-        if freq > 45.0:
-            # Recovery speed bergantung pada spinning reserve
-            reserve = total_avail - total_load
-            agc_gain = 0.05 if reserve >= 0 else 0.01 
-            freq += (F_NOM - freq) * agc_gain
-            
-        # CLAMP FREQUENCY (Allow transients to be visible)
         if total_avail > 0:
-            freq = max(48.0, min(52.0, freq))
-        else:
-            # Jika semua generator mati (Blackout), frekuensi jatuh ke 0
-            freq = 0.0
+            # SISTEM NORMAL / TERHUBUNG: Gunakan persamaan swing
+            if h_eff > 0.1:
+                dfdt = (F_NOM / (2.0 * h_eff)) * (delta_p_pu - damping_p)
+            else:
+                dfdt = (delta_p_pu - damping_p) * 2.0
+                
+            freq += dfdt * DT
             
-        rocof = dfdt
+            # AGC dan Recovery frekuensi sekarang sepenuhnya ditangani secara FISIKA NYATA
+            # oleh algoritma Dispatch (required_dispatch = total_load) dan Droop Control
+            # pada generator, sehingga modifikasi matematis buatan di sini telah dihapus.
+                
+            # CLAMP FREQUENCY (Realistic)
+            # Diperlebar (45-55 Hz) agar jika frekuensi anjlok ke 47 Hz, sistem proteksi 
+            # (UFR / Load Shedding) masih berkesempatan bekerja sebelum frekuensi mentok.
+            freq = max(45.0, min(55.0, freq))
+            rocof = dfdt
+            
+        else:
+            # SISTEM BLACKOUT (Semua generator trip)
+            # Generator terlepas dari jaringan, sehingga perlambatannya adalah karena gesekan mekanik
+            # turbin (Spin down / coast-down). Perlambatan meluruh secara eksponensial.
+            dfdt = - (freq / 3.0)  # Perlambatan natural turbin (time constant ~3s)
+            freq += dfdt * DT
+            if freq < 0.1:
+                freq = 0.0
+                dfdt = 0.0
+                
+            rocof = dfdt
 
         # ─────────────────────────────────────────────
         # 5. TULIS KE PLC
