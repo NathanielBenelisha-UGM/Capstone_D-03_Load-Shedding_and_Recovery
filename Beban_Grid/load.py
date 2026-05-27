@@ -53,7 +53,7 @@ GEN_CFG = {
         'rated': 75.0, 'min': 5.0,
         'H': 5.0,       # Tinggi
         'droop': 0.05,
-        'ramp': 0.5,    # REALISTIS: ~1.0 MW per detik (Air butuh waktu membuka katup penstock)
+        'ramp': 1.5,    # REALISTIS: ~1.0 MW per detik (Air butuh waktu membuka katup penstock)
         'mw_addr': 30,
     },
     'PLTS': {
@@ -69,7 +69,7 @@ GEN_CFG = {
         'rated': 75.0, 'min': 15.0,
         'H': 4.0,       # Sedang
         'droop': 0.04,
-        'ramp': 0.5,    # REALISTIS: ~1.0 MW per detik (Turbin gas/uap butuh waktu spooling)
+        'ramp': 1.5,    # REALISTIS: ~1.0 MW per detik (Turbin gas/uap butuh waktu spooling)
         'mw_addr': 32,
     },
     'PLTB': {
@@ -77,7 +77,7 @@ GEN_CFG = {
         'rated': 25.0, 'min': 0.0,
         'H': 1.0,       # DFIG inertia
         'droop': 0.04,
-        'ramp': 1.0,    # REALISTIS: ~4.0 MW per detik (Pitch control baling-baling)
+        'ramp': 2.0,    # REALISTIS: ~4.0 MW per detik (Pitch control baling-baling)
         'mw_addr': 33,
     },
 }
