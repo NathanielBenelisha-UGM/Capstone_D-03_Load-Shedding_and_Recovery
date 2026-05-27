@@ -225,11 +225,11 @@ def background_monitoring():
             
             # UFLS Trigger (Under-Frequency Load Shedding)
             # Hanya memutus beban jika frekuensi benar-benar anjlok (Simulasi fisis riil)
-            if freq_hz <= 49.5:
+            if freq_hz <= 49.0:
                 calc_deficit = max(capacity_deficit, 0)
                 calc_deficit = max(calc_deficit, currently_shed_mw + (potential_total_demand * 0.1)) # Force shed more
                     
-                if currently_shed_mw >= calc_deficit and freq_hz > 49.0:
+                if currently_shed_mw >= calc_deficit and freq_hz > 48.5:
                     # Sudah cukup beban yang dilepas, pertahankan kondisi trip agar tidak berganti-ganti (oscillation)
                     shed_set = current_tripped.copy()
                     shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
@@ -276,12 +276,15 @@ def background_monitoring():
                                 is_settled = False
                                 break
                                 
-                    if 49.5 < freq_hz <= 50.5 and is_settled:
+                    if 49.95 <= freq_hz <= 50.05 and is_settled:
                         app.restore_timer += 1
-                        if app.restore_timer >= 3: # Tunggu 3 siklus agar stabil
+                        if app.restore_timer >= 10: # Tunggu 10 siklus (1 detik) agar benar-benar stabil
                             # Hitung reserve berdasarkan beban yang PASTI akan ditarik setelah soft-start selesai
                             expected_on_demand = sum(l['mw'] for l in live_loads if l['name'] not in shed_set)
-                            true_reserve = available_capacity - expected_on_demand
+                            
+                            # SCADA Cerdas: Gunakan kapasitas efektif (Aktual + Margin 20 MW per Gen)
+                            effective_capacity = sum(min(g['mw'] + 20, g['rated']) for g in gen_statuses if g['status'] == 'ONLINE')
+                            true_reserve = effective_capacity - expected_on_demand
                             
                             for load in live_loads:
                                 if load['name'] in shed_set:
@@ -291,13 +294,13 @@ def background_monitoring():
                                         app.restore_timer = 0
                                         break # Hanya 1 per siklus
                         else:
-                            log_msg = f"Menunggu stabilitas sistem... ({app.restore_timer}/3)"
+                            log_msg = f"Menunggu stabilitas sistem... ({app.restore_timer}/10)"
                     else:
                         app.restore_timer = 0
                         if not is_settled:
                             log_msg = "Menunggu beban/generator mencapai setpoint (Soft-Start)..."
                         else:
-                            log_msg = "Menunggu frekuensi di antara 49.5 - 50.5 untuk restorasi..."
+                            log_msg = "Menunggu frekuensi stabil di 49.95 - 50.05 Hz untuk restorasi..."
 
             # Hitung Preselection Matrix (N-1 Generators)
             contingency_matrix = {}
