@@ -4,6 +4,7 @@ from pymodbus.client import ModbusTcpClient
 import threading
 import time
 import pulp
+from loadflow_module import run_live_loadflow
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -14,7 +15,7 @@ import os
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-PLC_IP = os.getenv('PLC_IP', '192.168.100.195')
+PLC_IP = os.getenv('PLC_IP', '192.168.1.13')
 PORT   = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(PLC_IP, port=PORT)
 
@@ -276,7 +277,7 @@ def background_monitoring():
                                 is_settled = False
                                 break
                                 
-                    if 49.95 <= freq_hz <= 50.05 and is_settled:
+                    if 49.95 <= freq_hz <= 50.10 and is_settled:
                         app.restore_timer += 1
                         if app.restore_timer >= 10: # Tunggu 10 siklus (1 detik) agar benar-benar stabil
                             # Hitung reserve berdasarkan beban yang PASTI akan ditarik setelah soft-start selesai
@@ -331,6 +332,34 @@ def background_monitoring():
                     })
                     
             app.last_load_statuses = load_statuses
+
+            # ── 5.5 LIVE LOAD FLOW TRIGGER
+            current_breaker_state = "-".join([g['status'] for g in gen_statuses] + [l['status'] for l in load_statuses])
+            
+            if not hasattr(app, 'lf_timer'):
+                app.lf_timer = 0
+            app.lf_timer += 1
+            
+            # Jalankan Load Flow jika:
+            # 1. Terjadi perubahan status breaker (Trip / Nyala)
+            # 2. Atau setiap 30 siklus (sekitar 3 detik) untuk melihat live update fluktuasi beban
+            if getattr(app, 'last_breaker_state', '') != current_breaker_state or app.lf_timer >= 30:
+                app.last_breaker_state = current_breaker_state
+                app.lf_timer = 0
+                
+                # Trigger live load flow in background
+                def run_lf_bg(gs, ls, trips):
+                    try:
+                        from loadflow_module import run_live_loadflow
+                        res = run_live_loadflow(gs, ls, trips)
+                        socketio.emit('live_loadflow_result', {'status': 'success', 'data': res})
+                    except Exception as e:
+                        socketio.emit('live_loadflow_result', {'status': 'error', 'message': str(e)})
+                        print(f"[SCADA] Error Live Load Flow: {e}")
+                
+                # We pass a copy of the current state to the thread
+                import copy
+                threading.Thread(target=run_lf_bg, args=(copy.deepcopy(gen_statuses), copy.deepcopy(live_loads), copy.deepcopy(shed_set)), daemon=True).start()
 
             # ── 6. Log & Broadcast
             print(f"| GEN:{total_gen:.0f}MW f={freq_hz:.2f}Hz "
@@ -463,7 +492,6 @@ def handle_set_gen_interrupt(data):
         })
     except Exception as e:
         print(f"[INJECT GEN] Error: {e}")
-
 
 # =========================================================
 # SOCKET — UPDATE PRIORITY BEBAN (MILP WEIGHT)

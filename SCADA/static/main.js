@@ -143,6 +143,156 @@ function initFreqChart() {
     });
 }
 
+// --- SVG SLD LOADING & PAN/ZOOM ---
+function loadSVG() {
+    fetch('/static/SLD.svg').then(res => res.text()).then(svgText => {
+        const sldContainer = document.getElementById('sld-container');
+        if (sldContainer) sldContainer.innerHTML = svgText;
+
+        initPanZoom('sld-container');
+    });
+}
+
+function initPanZoom(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const svg = container.querySelector('svg');
+    if (!svg) return;
+
+    let isDragging = false;
+    let startX, startY;
+
+    // Check if we already have transform data attached
+    if (!container.dataset.scale) {
+        container.dataset.scale = 1;
+        container.dataset.translateX = 0;
+        container.dataset.translateY = 0;
+    }
+
+    container.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX - parseFloat(container.dataset.translateX);
+        startY = e.clientY - parseFloat(container.dataset.translateY);
+        container.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        container.style.cursor = 'grab';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        container.dataset.translateX = e.clientX - startX;
+        container.dataset.translateY = e.clientY - startY;
+        applyTransform(container);
+    });
+
+    container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        let scale = parseFloat(container.dataset.scale);
+        scale = Math.max(0.5, Math.min(3, scale + delta));
+        container.dataset.scale = scale;
+        applyTransform(container);
+    });
+}
+
+function applyTransform(container) {
+    const svg = container.querySelector('svg');
+    if (svg) {
+        svg.style.transform = `translate(${container.dataset.translateX}px, ${container.dataset.translateY}px) scale(${container.dataset.scale})`;
+    }
+}
+
+window.zoomSLD = function (delta) {
+    const container = document.getElementById('sld-container');
+    if (!container) return;
+    let scale = parseFloat(container.dataset.scale) + delta;
+    container.dataset.scale = Math.max(0.5, Math.min(3, scale));
+    applyTransform(container);
+};
+
+window.resetSLD = function () {
+    const container = document.getElementById('sld-container');
+    if (!container) return;
+    container.dataset.scale = 1;
+    container.dataset.translateX = 0;
+    container.dataset.translateY = 0;
+    applyTransform(container);
+};
+
+window.lastLoadflowData = null;
+
+function applyHeatmapToSLD(d) {
+    const hmContainer = document.getElementById('sld-container');
+    if (!hmContainer) return;
+    const svg = hmContainer.querySelector('svg');
+    if (!svg) return;
+
+    function colorizeHeatmap(id, loading, isBusbar=false, customColor=null) {
+        let color = customColor || '#00ffaa'; // Green default
+        if (!customColor) {
+            if (loading > 100) color = '#ff4444';
+            else if (loading > 80) color = '#ffca28';
+        }
+
+        let el = svg.getElementById(id);
+        if (!el) return;
+
+        el.querySelectorAll('polyline, polygon, ellipse, path').forEach(child => {
+            if (child.getAttribute('stroke') && child.getAttribute('stroke') !== 'none') child.setAttribute('stroke', color);
+            if (child.tagName === 'polygon' && child.getAttribute('fill') !== 'none') child.setAttribute('fill', color);
+            child.style.transition = 'all 0.3s ease';
+            if ((loading > 100 || isBusbar && customColor !== '#00ffaa') && !child.classList.contains('gen-pulse')) {
+                child.style.filter = `drop-shadow(0 0 8px ${color})`;
+                if(!isBusbar) child.style.strokeWidth = '4px';
+            } else {
+                child.style.filter = 'none';
+                if(!isBusbar) child.style.strokeWidth = '1px';
+            }
+        });
+    }
+
+    if (d.lines) {
+        d.lines.forEach(line => {
+            let svgName = line.name;
+            if (line.name === "Line_1-2") svgName = "Line 1-2";
+            colorizeHeatmap(`New\\${svgName}.ElmLne`, line.loading_percent);
+        });
+    }
+
+    if (d.trafos) {
+        d.trafos.forEach(t => {
+            let svgName = "Tranformator";
+            if (t.name === "Trafo 1") svgName = "Tranformator_1";
+            if (t.name === "Trafo 2") svgName = "Tranformator_2";
+            colorizeHeatmap(`New\\${svgName}.ElmTr2`, t.loading_percent);
+        });
+    }
+
+    if (d.buses) {
+        d.buses.forEach(b => {
+            let busName = b.name || b.index;
+            let color = '#00ffaa'; // Normal
+            if (b.vm_pu > 1.02 || b.vm_pu < 0.99) color = '#ffca28'; // Warning (Tegangan mulai tidak ideal)
+            if (b.vm_pu > 1.05 || b.vm_pu < 0.95) color = '#ff4444'; // Danger (Tegangan kritis)
+            
+            let svgId = null;
+            if (busName.includes('N1_SS1')) svgId = 'New\\N1_SS1.ElmTerm';
+            else if (busName.includes('N2_SS2')) svgId = 'New\\N2_SS2.ElmTerm';
+            else if (busName.includes('N3_SS3')) svgId = 'New\\N3_SS3.ElmTerm';
+            else if (busName.includes('N4_SS4_150kV')) svgId = 'New\\N4_SS4_150kV.ElmTerm';
+            else if (busName.includes('N5_SS4_20kV')) svgId = 'New\\N5_SS4_20kV.ElmTerm';
+            else if (busName.includes('66kV-1')) svgId = 'New\\150kV-1.ElmTerm';
+            else if (busName.includes('66kV-2')) svgId = 'New\\150kV-2.ElmTerm';
+            
+            if (svgId) colorizeHeatmap(svgId, 0, true, color);
+        });
+    }
+}
+
 // --- SOCKET CONNECTION & UPDATES ---
 function initSocket() {
     socket = io();
@@ -163,7 +313,54 @@ function initSocket() {
         updateLoads(data);
         updateContingency(data);
         updateSLD(data);
+        if (window.lastLoadflowData) applyHeatmapToSLD(window.lastLoadflowData);
         logAlarm(data.log);
+    });
+
+    socket.on('live_loadflow_result', (res) => {
+        const badge = document.getElementById('lf-status-badge');
+
+        if (badge) {
+            badge.innerHTML = '<i class="ph-fill ph-check-circle"></i> Live Data Received';
+            setTimeout(() => { badge.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Waiting for Data...'; }, 2000);
+        }
+
+        if (res.status === 'error') {
+            document.getElementById('lf-status-text').innerText = 'ERROR: ' + res.message;
+            document.getElementById('lf-status-text').style.color = '#ff4444';
+            return;
+        }
+
+        const d = res.data;
+        document.getElementById('lf-max-loading').innerText = d.max_loading + '%';
+        document.getElementById('lf-max-loading').style.color = d.max_loading > 100 ? '#ff4444' : (d.max_loading > 80 ? '#ffca28' : '#00ffaa');
+
+        document.getElementById('lf-min-voltage').innerText = d.min_v + ' pu';
+        document.getElementById('lf-min-voltage').style.color = d.min_v < 0.95 ? '#ff4444' : (d.min_v < 0.99 ? '#ffca28' : '#00ffaa');
+
+        if (d.slack_name) {
+            let shortName = d.slack_name.replace("Slack (", "").replace(")", "");
+            document.getElementById('lf-slack-title').innerText = `Slack Bus Output (${shortName})`;
+            document.getElementById('lf-slack-capacity').innerText = `Kapasitas Aman: ${d.slack_capacity.toFixed(1)} MW`;
+            
+            document.getElementById('lf-slack-mw').innerHTML = `${d.slack_mw.toFixed(1)}<span style="font-size: 1rem;">MW</span>`;
+            document.getElementById('lf-slack-mw').style.color = d.slack_mw > d.slack_capacity ? '#ff4444' : (d.slack_mw > d.slack_capacity * 0.9 ? '#ffca28' : '#00ffaa');
+        } else {
+            document.getElementById('lf-slack-mw').innerHTML = `${d.slack_mw.toFixed(1)}<span style="font-size: 1rem;">MW</span>`;
+            document.getElementById('lf-slack-mw').style.color = d.slack_mw > 75.0 ? '#ff4444' : (d.slack_mw > 65.0 ? '#ffca28' : '#00ffaa');
+        }
+
+        const statusText = document.getElementById('lf-status-text');
+        if (d.max_loading > 100) {
+            statusText.innerText = 'OVERLOAD DETECTED';
+            statusText.style.color = '#ff4444';
+        } else {
+            statusText.innerText = 'STABLE';
+            statusText.style.color = '#00ffaa';
+        }
+
+        window.lastLoadflowData = d;
+        applyHeatmapToSLD(d);
     });
 }
 
@@ -287,7 +484,7 @@ function updateSLD(data) {
                 dynText.setAttribute('font-size', '9');
                 dynText.setAttribute('font-weight', 'bold');
                 dynText.setAttribute('font-family', 'var(--font-mono)');
-                
+
                 // Append directly after origText so it shares same coordinate space if possible
                 if (origText.parentNode) {
                     origText.parentNode.appendChild(dynText);
@@ -302,7 +499,7 @@ function updateSLD(data) {
             tspan1.setAttribute('x', xPos);
             tspan1.setAttribute('dy', '0');
             tspan1.textContent = `${l.mw} MW`;
-            
+
             let tspan2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
             tspan2.setAttribute('x', xPos);
             tspan2.setAttribute('dy', '1.2em');
@@ -354,7 +551,7 @@ function updateSLD(data) {
                 }
             });
         }
-        
+
         // Find generator text globally
         let dynText = svg.querySelector(`text.dynamic-data[data-id="${g.name}"]`);
         if (!dynText) {
@@ -369,7 +566,7 @@ function updateSLD(data) {
                 dynText.setAttribute('font-size', '12');
                 dynText.setAttribute('font-weight', 'bold');
                 dynText.setAttribute('font-family', 'var(--font-mono)');
-                
+
                 if (origText.parentNode) {
                     origText.parentNode.appendChild(dynText);
                 }
@@ -598,7 +795,7 @@ function logAlarm(msg) {
     // Ekstrak pesan murni tanpa timestamp untuk deduplikasi
     const bracketIndex = msg.indexOf(']');
     const rawMsg = bracketIndex !== -1 ? msg.substring(bracketIndex + 2) : msg;
-    
+
     // Jangan append jika pesannya sama persis (mencegah spam 10x per detik)
     if (rawMsg === lastRawMsg) return;
     lastRawMsg = rawMsg;
@@ -621,7 +818,7 @@ function logAlarm(msg) {
         div.style.fontSize = '0.85rem';
         div.style.color = color;
         div.innerText = msg;
-        
+
         logDiv.prepend(div);
         if (logDiv.children.length > 50) logDiv.lastChild.remove();
     }
@@ -629,7 +826,7 @@ function logAlarm(msg) {
     // 2. Update Tab History Log Utama (HANYA KETIKA ADA GANGGUAN / EVENT PENTING)
     // Filter out pesan rutin seperti "Sistem Stabil." atau "Menunggu..."
     const isRoutineMessage = rawMsg.includes('Sistem Stabil') || rawMsg.includes('Menunggu');
-    
+
     if (!isRoutineMessage) {
         const histDiv = document.getElementById('history-log-content');
         if (histDiv) {
@@ -637,10 +834,10 @@ function logAlarm(msg) {
             hdiv.style.padding = '12px 0';
             hdiv.style.borderBottom = '1px dashed rgba(255,255,255,0.1)';
             hdiv.style.color = color;
-            
+
             const timestamp = bracketIndex !== -1 ? msg.substring(0, bracketIndex + 1) : '';
             hdiv.innerHTML = `<span style="color:var(--text-muted); margin-right:15px;">${timestamp}</span> <strong>${rawMsg}</strong>`;
-            
+
             histDiv.prepend(hdiv);
             // Simpan memori lebih panjang (500 log) untuk tab history
             if (histDiv.children.length > 500) histDiv.lastChild.remove();
@@ -778,13 +975,6 @@ window.sendSinglePriority = function (loadId, rawVal) {
     console.log(`Auto-update Priority: ${loadId} → ${prio}`);
 };
 
-window.sendSinglePriority = function (loadId, rawVal) {
-    if (!socket) return;
-    const prio = parseInt(rawVal) || 2;
-    socket.emit('set_load_priority', { load: loadId, priority: prio });
-    console.log(`Auto-update Priority: ${loadId} → ${prio}`);
-};
-
 window.sendAllPriorities = function () {
     if (!socket) return;
     const inputs = document.querySelectorAll('.priority-input');
@@ -801,5 +991,4 @@ function toggleGen(name, action) {
     if (!socket) return;
     socket.emit('gen_control', { name, action });
 }
-
 
