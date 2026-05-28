@@ -7,7 +7,7 @@ from pymodbus.client import ModbusTcpClient
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-plc_ip = os.getenv('PLC_IP', '192.168.100.195')
+plc_ip = os.getenv('PLC_IP', '192.168.1.13')
 plc_port = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(plc_ip, port=plc_port)
 client.connect()
@@ -51,9 +51,9 @@ GEN_CFG = {
     'PLTA': {
         'type': 'hydro',
         'rated': 75.0, 'min': 5.0,
-        'H': 5.0,       # Tinggi
+        'H': 5.0,       
         'droop': 0.05,
-        'ramp': 1.5,    # REALISTIS: ~1.0 MW per detik (Air butuh waktu membuka katup penstock)
+        'ramp': 5.0,   
         'mw_addr': 30,
     },
     'PLTS': {
@@ -61,7 +61,7 @@ GEN_CFG = {
         'rated': 25.0, 'min': 0.0,
         'H': 0.5,       # BESS virtual inertia
         'droop': 0.02,
-        'ramp': 5.0,    # BESS SANGAT CEPAT: ~20.0 MW per detik (Baterai inverter merespons instan)
+        'ramp': 5.0,    
         'mw_addr': 31,
     },
     'PLTGU': {
@@ -69,7 +69,7 @@ GEN_CFG = {
         'rated': 75.0, 'min': 15.0,
         'H': 4.0,       # Sedang
         'droop': 0.04,
-        'ramp': 1.5,    # REALISTIS: ~1.0 MW per detik (Turbin gas/uap butuh waktu spooling)
+        'ramp': 3.0,    
         'mw_addr': 32,
     },
     'PLTB': {
@@ -77,7 +77,7 @@ GEN_CFG = {
         'rated': 25.0, 'min': 0.0,
         'H': 1.0,       # DFIG inertia
         'droop': 0.04,
-        'ramp': 2.0,    # REALISTIS: ~4.0 MW per detik (Pitch control baling-baling)
+        'ramp': 2.0,    
         'mw_addr': 33,
     },
 }
