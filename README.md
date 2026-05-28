@@ -15,6 +15,7 @@ Stabilitas frekuensi pada sistem tenaga listrik sangat bergantung pada keseimban
 3.  **Matriks Kontingensi N-1:** Prediksi probabilitas kegagalan generator terbesar secara *live* untuk menghasilkan *Preselection* target pemadaman.
 4.  **Anti-Oscillation & Priority Swapping:** Sistem penguncian pintar untuk mencegah osilasi breaker, sembari tetap membolehkan operator mengubah prioritas secara dinamis.
 5.  **SCADA Web Dashboard:** Antarmuka HMI modern dan responsif menggunakan teknologi WebSockets untuk pemantauan dan kontrol interaktif dua arah.
+6.  **Live Load Flow Analysis:** Perhitungan komputasi aliran daya (*Power Flow*) di-trigger secara *background* setiap ada perubahan status *breaker* untuk menganalisis dampak transien terhadap topologi jaringan.
 
 ---
 
@@ -60,9 +61,9 @@ Proyek ini mengintegrasikan simulasi PLC menggunakan skema *Ladder Logic* (LD) s
 ![Ladder Logic Load Shedding](VirtualPLC/VirtualPLC_Dynamic-22.png)
 
 *   **Logika Generator (Rung 0 - 3):**
-    Di sisi PLC, generator direpresentasikan menggunakan kontak *Normally Open* (`| |`) untuk status sensor fisiknya (contoh: `%M10` untuk PLTA) yang diserikan dengan kontak *Normally Closed* (`| / |`) sebagai *override* kontrol dari SCADA (contoh: `%M50`). Jika SCADA memerintahkan *trip* (menulis nilai logika `1` ke `%M50`), aliran daya akan terputus dan mematikan *coil* output utama `%Q0.0`.
+    Di sisi PLC, generator direpresentasikan menggunakan kontak *Normally Open* (`| |`) untuk status sensor fisiknya (contoh: `%M0` untuk PLTA) yang diserikan dengan kontak *Normally Closed* (`| / |`) sebagai *override* kontrol dari SCADA (contoh: `%M50`). Jika SCADA memerintahkan *trip* (menulis nilai logika `1` ke `%M50`), aliran daya akan terputus dan mematikan *coil* output utama `%Q0.0`.
 *   **Logika Pelepasan Beban / Load Shedding (Rung 4 - 15):**
-    Beban di lapangan seperti `L101` hingga `L405` terhubung menggunakan satu instruksi utama *Normally Closed* (`| / |`) dari Holding Register (contoh: `%M21` untuk L101). Secara *default*, selama jaringan stabil (logika `0`), *coil* beban `%Q0.4` tetap menyala. Saat algoritma optimasi MILP mendeteksi UFLS, Python akan menembakkan logika `1` ke alamat tersebut, membuat kontak PLC terbuka (*open circuit*) secara instan dan mematikan suplai beban. Umpan balik status pemadaman ini langsung dibaca kembali oleh SCADA melalui memori `%M60`.
+    Beban di lapangan seperti `L101` hingga `L405` terhubung menggunakan satu instruksi utama *Normally Closed* (`| / |`) dari Coil (contoh: `%M21` untuk L101). Secara *default*, selama jaringan stabil (logika `0`), *coil* beban `%Q0.4` tetap menyala. Saat algoritma optimasi MILP mendeteksi UFLS, Python akan menembakkan logika `1` ke alamat tersebut, membuat kontak PLC terbuka (*open circuit*) secara instan dan mematikan suplai beban. Status pemadaman ini langsung direspons oleh *Physics Engine* (`load.py`) untuk memutus beban dari perhitungan jaringan.
 
 ---
 
@@ -101,8 +102,8 @@ $$
 *   $R$: *Droop setting* (biasanya dalam rentang 4-5%).
 *   $P_{Rated}$: Kapasitas daya maksimum generator.
 
-### 3.3 Kontrol Sekunder: *Automatic Generation Control* (AGC)
-Meskipun kontrol primer menstabilkan penurunan, frekuensi akan menetap pada kondisi tunak (*steady-state error*) yang berbeda dari $f_{nom}$. AGC berfungsi untuk memberikan *setpoint* daya tambahan secara perlahan (memanfaatkan *Spinning Reserve*) agar frekuensi kembali ke batas eksak **50.0 Hz**.
+### 3.3 Pemulihan Frekuensi & Dispatch
+Pada pembaruan sistem saat ini, pemulihan frekuensi (*Frequency Recovery*) dan respons sekunder sepenuhnya ditangani secara fisika nyata oleh algoritma *Dispatch* dan *Droop Control* pada generator di dalam `load.py`. Ketika SCADA memutus beban yang cukup untuk mengatasi defisit, keseimbangan energi kinetik pulih secara natural sehingga frekuensi kembali mengarah ke **50.0 Hz**, tanpa menggunakan intervensi rumus matematis buatan (*artificial mathematical modifications*).
 
 ---
 
@@ -148,6 +149,9 @@ Untuk mengatasi hal ini, algoritma memberikan "**Diskon Penalti 10%**" ($W_i \ti
 
 ### 4.3 Matriks Kontingensi N-1 Secara *Live*
 Bahkan pada frekuensi stabil 50 Hz, MILP terus menghitung probabilitas terburuk (*predictive analysis*) pada skenario kegagalan tunggal (N-1). Jika generator terbesar terputus, matriks akan menampilkan *Feeder* prioritas rendah mana saja yang di-"*Preselection*" merah untuk siap dikorbankan.
+
+### 4.4 Asynchronous Live Load Flow
+Sistem juga mengintegrasikan komputasi topologi *Power Flow* secara *real-time* (`loadflow_module.py`). Setiap kali terjadi perubahan status *breaker* atau siklus waktu tertentu tercapai, perhitungan aliran daya dijalankan di *background thread*. Eksekusi asinkron ini memastikan simulasi 10 FPS utama tidak terganggu (*non-blocking*), namun SCADA HMI tetap mendapatkan umpan balik mengenai kondisi jaringan transmisi secara *live*.
 
 ---
 
