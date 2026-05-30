@@ -97,12 +97,15 @@ def create_network():
 
 def get_results_dict(net):
     v_profile = net.res_bus[['vm_pu', 'va_degree']].round(3)
+    v_profile = v_profile.fillna(0)
     v_profile.index = net.bus.name
     
     t_load = net.res_trafo[['loading_percent']].round(2)
+    t_load = t_load.fillna(0)
     t_load.index = net.trafo.name
     
     l_load = net.res_line[['loading_percent']].round(2)
+    l_load = l_load.fillna(0)
     l_load.index = net.line.name
     
     # Check max overload
@@ -128,8 +131,13 @@ def get_results_dict(net):
         print("DEBUG res_ext_grid:\n", net.res_ext_grid)
         print("DEBUG slack_mw:", slack_mw)
     
-    min_v = v_profile['vm_pu'].min()
-    max_v = v_profile['vm_pu'].max()
+    active_v = v_profile[v_profile['vm_pu'] > 0]
+    if not active_v.empty:
+        min_v = active_v['vm_pu'].min()
+        max_v = active_v['vm_pu'].max()
+    else:
+        min_v = 0.0
+        max_v = 0.0
     
     return {
         'buses': v_profile.reset_index().to_dict(orient='records'),
@@ -179,6 +187,20 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads):
         if len(idx_sgen) > 0:
             net.sgen.loc[idx_sgen[0], 'in_service'] = is_on
             net.sgen.loc[idx_sgen[0], 'p_mw'] = g['mw'] if g['mw'] > 0 else 0.1
+
+    # Breaker Intertrip Logic (Putus Trafo jika bus generator mati total)
+    bus1_active = any(g['status'] == 'ONLINE' for g in gen_statuses if g['name'] in ['PLTA', 'PLTS'])
+    bus2_active = any(g['status'] == 'ONLINE' for g in gen_statuses if g['name'] in ['PLTGU', 'PLTB'])
+    
+    if not bus1_active:
+        idx_t1 = net.trafo[net.trafo.name == "Trafo 1"].index
+        if len(idx_t1) > 0:
+            net.trafo.loc[idx_t1[0], 'in_service'] = False
+            
+    if not bus2_active:
+        idx_t2 = net.trafo[net.trafo.name == "Trafo 2"].index
+        if len(idx_t2) > 0:
+            net.trafo.loc[idx_t2[0], 'in_service'] = False
 
     # Update Loads
     for l in live_loads:

@@ -225,13 +225,28 @@ window.resetSLD = function () {
 
 window.lastLoadflowData = null;
 
-function applyHeatmapToSLD(d) {
+function applyHeatmapToSLD(d, scadaData) {
     const hmContainer = document.getElementById('sld-container');
     if (!hmContainer) return;
     const svg = hmContainer.querySelector('svg');
     if (!svg) return;
 
-    function colorizeHeatmap(id, loading, isBusbar=false, customColor=null) {
+    if (scadaData && scadaData.total_gen === 0) return; // Blackout
+
+    let isBus1Active = true;
+    let isBus2Active = true;
+    if (scadaData) {
+        isBus1Active = false;
+        isBus2Active = false;
+        scadaData.generators.forEach(g => {
+            if (g.status === 'ONLINE') {
+                if (g.name === 'PLTA' || g.name === 'PLTS') isBus1Active = true;
+                if (g.name === 'PLTGU' || g.name === 'PLTB') isBus2Active = true;
+            }
+        });
+    }
+
+    function colorizeHeatmap(id, loading, isBusbar = false, customColor = null) {
         let color = customColor || '#00ffaa'; // Green default
         if (!customColor) {
             if (loading > 100) color = '#ff4444';
@@ -247,10 +262,10 @@ function applyHeatmapToSLD(d) {
             child.style.transition = 'all 0.3s ease';
             if ((loading > 100 || isBusbar && customColor !== '#00ffaa') && !child.classList.contains('gen-pulse')) {
                 child.style.filter = `drop-shadow(0 0 8px ${color})`;
-                if(!isBusbar) child.style.strokeWidth = '4px';
+                if (!isBusbar) child.style.strokeWidth = '4px';
             } else {
                 child.style.filter = 'none';
-                if(!isBusbar) child.style.strokeWidth = '1px';
+                if (!isBusbar) child.style.strokeWidth = '1px';
             }
         });
     }
@@ -268,6 +283,10 @@ function applyHeatmapToSLD(d) {
             let svgName = "Tranformator";
             if (t.name === "Trafo 1") svgName = "Tranformator_1";
             if (t.name === "Trafo 2") svgName = "Tranformator_2";
+            
+            if (svgName === "Tranformator_1" && !isBus1Active) return;
+            if (svgName === "Tranformator_2" && !isBus2Active) return;
+
             colorizeHeatmap(`New\\${svgName}.ElmTr2`, t.loading_percent);
         });
     }
@@ -275,19 +294,23 @@ function applyHeatmapToSLD(d) {
     if (d.buses) {
         d.buses.forEach(b => {
             let busName = b.name || b.index;
+            
+            if (busName.includes('66kV-1') && !isBus1Active) return;
+            if (busName.includes('66kV-2') && !isBus2Active) return;
+            
             let color = '#00ffaa'; // Normal
             if (b.vm_pu > 1.02 || b.vm_pu < 0.99) color = '#ffca28'; // Warning (Tegangan mulai tidak ideal)
             if (b.vm_pu > 1.05 || b.vm_pu < 0.95) color = '#ff4444'; // Danger (Tegangan kritis)
-            
+
             let svgId = null;
-            if (busName.includes('N1_SS1')) svgId = 'New\\N1_SS1.ElmTerm';
-            else if (busName.includes('N2_SS2')) svgId = 'New\\N2_SS2.ElmTerm';
-            else if (busName.includes('N3_SS3')) svgId = 'New\\N3_SS3.ElmTerm';
+            if (busName.includes('N1_SS1')) svgId = 'New\\N1_SS1_150kV.ElmTerm';
+            else if (busName.includes('N2_SS2')) svgId = 'New\\N2_SS2_150kV.ElmTerm';
+            else if (busName.includes('N3_SS3')) svgId = 'New\\N3_SS3_150kV.ElmTerm';
             else if (busName.includes('N4_SS4_150kV')) svgId = 'New\\N4_SS4_150kV.ElmTerm';
             else if (busName.includes('N5_SS4_20kV')) svgId = 'New\\N5_SS4_20kV.ElmTerm';
             else if (busName.includes('66kV-1')) svgId = 'New\\66kV-1.ElmTerm';
             else if (busName.includes('66kV-2')) svgId = 'New\\66kV-2.ElmTerm';
-            
+
             if (svgId) colorizeHeatmap(svgId, 0, true, color);
         });
     }
@@ -308,12 +331,13 @@ function initSocket() {
     });
 
     socket.on('grid_update', (data) => {
+        window.lastScadaData = data;
         updateOverview(data);
         updateGenerators(data);
         updateLoads(data);
         updateContingency(data);
         updateSLD(data);
-        if (window.lastLoadflowData) applyHeatmapToSLD(window.lastLoadflowData);
+        if (window.lastLoadflowData) applyHeatmapToSLD(window.lastLoadflowData, window.lastScadaData);
         logAlarm(data.log);
     });
 
@@ -342,7 +366,7 @@ function initSocket() {
             let shortName = d.slack_name.replace("Slack (", "").replace(")", "");
             document.getElementById('lf-slack-title').innerText = `Slack Bus Output (${shortName})`;
             document.getElementById('lf-slack-capacity').innerText = `Kapasitas Aman: ${d.slack_capacity.toFixed(1)} MW`;
-            
+
             document.getElementById('lf-slack-mw').innerHTML = `${d.slack_mw.toFixed(1)}<span style="font-size: 1rem;">MW</span>`;
             document.getElementById('lf-slack-mw').style.color = d.slack_mw > d.slack_capacity ? '#ff4444' : (d.slack_mw > d.slack_capacity * 0.9 ? '#ffca28' : '#00ffaa');
         } else {
@@ -360,7 +384,7 @@ function initSocket() {
         }
 
         window.lastLoadflowData = d;
-        applyHeatmapToSLD(d);
+        applyHeatmapToSLD(d, window.lastScadaData);
     });
 }
 
@@ -583,7 +607,7 @@ function updateSLD(data) {
     // Topology-aware grid lighting
     const backboneGroups = [
         'Line_1.ElmLne', 'Line_2.ElmLne', 'Line 1-2.ElmLne', 'Line_1-1.ElmLne',
-        'N1_SS1.ElmTerm', 'N2_SS2.ElmTerm', 'N3_SS3.ElmTerm', 'N4_SS4_150kV.ElmTerm', 'N5_SS4_20kV.ElmTerm',
+        'N1_SS1_150kV.ElmTerm', 'N2_SS2_150kV.ElmTerm', 'N3_SS3_150kV.ElmTerm', 'N4_SS4_150kV.ElmTerm', 'N5_SS4_20kV.ElmTerm',
         'Tranformator.ElmTr2'
     ];
 

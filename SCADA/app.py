@@ -277,7 +277,7 @@ def background_monitoring():
                                 is_settled = False
                                 break
                                 
-                    if 49.95 <= freq_hz <= 50.10 and is_settled:
+                    if 49.95 <= freq_hz <= 52.25 and is_settled:
                         app.restore_timer += 1
                         if app.restore_timer >= 10: # Tunggu 10 siklus (1 detik) agar benar-benar stabil
                             # Hitung reserve berdasarkan beban yang PASTI akan ditarik setelah soft-start selesai
@@ -301,7 +301,7 @@ def background_monitoring():
                         if not is_settled:
                             log_msg = "Menunggu beban/generator mencapai setpoint (Soft-Start)..."
                         else:
-                            log_msg = "Menunggu frekuensi stabil di 49.95 - 50.05 Hz untuk restorasi..."
+                            log_msg = "Menunggu frekuensi stabil di >49.95 Hz untuk restorasi..."
 
             # Hitung Preselection Matrix (N-1 Generators)
             contingency_matrix = {}
