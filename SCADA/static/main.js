@@ -285,8 +285,8 @@ function applyHeatmapToSLD(d) {
             else if (busName.includes('N3_SS3')) svgId = 'New\\N3_SS3.ElmTerm';
             else if (busName.includes('N4_SS4_150kV')) svgId = 'New\\N4_SS4_150kV.ElmTerm';
             else if (busName.includes('N5_SS4_20kV')) svgId = 'New\\N5_SS4_20kV.ElmTerm';
-            else if (busName.includes('66kV-1')) svgId = 'New\\150kV-1.ElmTerm';
-            else if (busName.includes('66kV-2')) svgId = 'New\\150kV-2.ElmTerm';
+            else if (busName.includes('66kV-1')) svgId = 'New\\66kV-1.ElmTerm';
+            else if (busName.includes('66kV-2')) svgId = 'New\\66kV-2.ElmTerm';
             
             if (svgId) colorizeHeatmap(svgId, 0, true, color);
         });
@@ -594,14 +594,14 @@ function updateSLD(data) {
     });
 
     // Generator Bus 1 (PLTA & PLTS)
-    ['150kV-1.ElmTerm', 'Tranformator_1.ElmTr2'].forEach(id => {
+    ['66kV-1.ElmTerm', 'Tranformator_1.ElmTr2'].forEach(id => {
         let color = isBus1Active ? '#00ffaa' : '#475569';
         let shadow = isBus1Active ? 'rgba(0,255,170,0.6)' : 'transparent';
         colorize(`New\\${id}`, color, shadow, isBus1Active);
     });
 
     // Generator Bus 2 (PLTGU & PLTB)
-    ['150kV-2.ElmTerm', 'Tranformator_2.ElmTr2'].forEach(id => {
+    ['66kV-2.ElmTerm', 'Tranformator_2.ElmTr2'].forEach(id => {
         let color = isBus2Active ? '#00ffaa' : '#475569';
         let shadow = isBus2Active ? 'rgba(0,255,170,0.6)' : 'transparent';
         colorize(`New\\${id}`, color, shadow, isBus2Active);
