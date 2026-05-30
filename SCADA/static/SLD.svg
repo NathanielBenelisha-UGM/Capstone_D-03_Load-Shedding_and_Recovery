@@ -1,362 +1,362 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg baseProfile='full' height='100.000000%' version='1.1' viewBox='0.000000 0.000000 1093.000000 1093.000000' width='100.000000%' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+<svg baseProfile='full' height='100.000000%' version='1.1' viewBox='0.000000 0.000000 1054.000000 1054.000000' width='100.000000%' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
 
 
   <defs>
     <clipPath id='clipPath-01'>
-      <polygon points='0.000000 1093.613298, 0.000000 0.000000, 1093.613298 0.000000, 1093.613298 1093.613298' />
+      <polygon points='0.000000 1054.555681, 0.000000 0.000000, 1054.555681 0.000000, 1054.555681 1054.555681' />
     </clipPath>
   </defs>
 
   <g clip-path='url(#clipPath-01)'>
     <g id='Net elements'>
-      <g id='New\L405.ElmLod'>
-        <polyline fill='none' points='947.427598 723.156787, 947.427598 723.156787' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='947.427598 742.579179, 947.427598 723.127191' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='939.665218 742.579179, 955.189978 742.579179, 947.427598 762.005121, 939.665218 742.579179' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L404.ElmLod'>
-        <polyline fill='none' points='895.698105 723.156787, 895.698105 723.156787' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='895.698105 742.579179, 895.698105 723.127191' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='887.935725 742.579179, 903.460485 742.579179, 895.698105 762.005121, 887.935725 742.579179' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L403.ElmLod'>
-        <polyline fill='none' points='843.968613 723.156787, 843.968613 723.156787' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='843.968613 742.579179, 843.968613 723.127191' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='836.206233 742.579179, 851.730992 742.579179, 843.968613 762.005121, 836.206233 742.579179' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L402.ElmLod'>
-        <polyline fill='none' points='792.239120 723.156787, 792.239120 723.156787' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='792.239120 742.579179, 792.239120 723.127191' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='784.476740 742.579179, 800.001500 742.579179, 792.239120 762.005121, 784.476740 742.579179' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\Tranformator.ElmTr2'>
-        <polyline fill='none' points='766.374374 658.414496, 766.374374 645.466038' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='766.374374 710.208329, 766.374374 723.156787' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='766.374374 658.384900, 766.374374 659.971271' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='766.374374' cy='675.503206' fill='none' rx='15.547816' ry='15.567154' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='766.374374' cy='693.119620' fill='none' rx='15.547816' ry='15.567154' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='766.374374 710.237926, 766.374374 708.651554' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L401.ElmLod'>
-        <polyline fill='none' points='662.915389 645.466038, 662.915389 645.466038' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='662.915389 664.888429, 662.915389 645.436442' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='655.153009 664.888429, 670.677768 664.888429, 662.915389 684.314372, 655.153009 664.888429' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L305.ElmLod'>
-        <polyline fill='none' points='326.673687 645.466038, 326.673687 645.466038' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='326.673687 664.888429, 326.673687 645.436442' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='318.911307 664.888429, 334.436067 664.888429, 326.673687 684.314372, 318.911307 664.888429' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L304.ElmLod'>
-        <polyline fill='none' points='274.944194 645.466038, 274.944194 645.466038' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='274.944194 664.888429, 274.944194 645.436442' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='267.181814 664.888429, 282.706574 664.888429, 274.944194 684.314372, 267.181814 664.888429' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L303.ElmLod'>
-        <polyline fill='none' points='223.214702 645.466038, 223.214702 645.466038' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='223.214702 664.888429, 223.214702 645.436442' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='215.452322 664.888429, 230.977081 664.888429, 223.214702 684.314372, 215.452322 664.888429' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L302.ElmLod'>
-        <polyline fill='none' points='171.485209 645.466038, 171.485209 645.466038' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='171.485209 664.888429, 171.485209 645.436442' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='163.722829 664.888429, 179.247589 664.888429, 171.485209 684.314372, 163.722829 664.888429' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L301.ElmLod'>
-        <polyline fill='none' points='119.755716 645.466038, 119.755716 645.466038' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='119.755716 664.888429, 119.755716 645.436442' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='111.993337 664.888429, 127.518096 664.888429, 119.755716 684.314372, 111.993337 664.888429' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\Line_2.ElmLne'>
-        <polyline fill='none' points='494.794538 671.362955, 404.267926 671.362955, 404.267926 645.466038' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='494.794538 671.362955, 585.321150 671.362955, 585.321150 645.466038' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\Line 1-2.ElmLne'>
-        <polyline fill='none' points='637.050642 606.620664, 637.050642 567.775289' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='637.050642 606.620664, 637.050642 645.466038' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\Line_1-1.ElmLne'>
-        <polyline fill='none' points='352.538433 606.620664, 352.538433 567.775289' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='352.538433 606.620664, 352.538433 645.466038' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L201.ElmLod'>
-        <polyline fill='none' points='714.644881 567.775289, 714.644881 567.775289' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='714.644881 587.197680, 714.644881 567.745693' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='706.882501 587.197680, 722.407261 587.197680, 714.644881 606.623623, 706.882501 587.197680' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L101.ElmLod'>
-        <polyline fill='none' points='274.944194 567.775289, 274.944194 567.775289' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='274.944194 587.197680, 274.944194 567.745693' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='267.181814 587.197680, 282.706574 587.197680, 274.944194 606.623623, 267.181814 587.197680' stroke='#000000' stroke-width='1.000000' />
-      </g>
       <g id='New\PLTB.ElmSym'>
-        <polyline fill='none' points='688.780135 386.496874, 688.780135 438.290707' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='688.780135 386.526471, 688.780135 374.843558' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='688.780135' cy='360.599958' fill='none' rx='14.225315' ry='14.243008' stroke='#000000' stroke-width='1.000000' />
-        <text fill='#000000' font-family='Arial' font-size='15.635874' text-anchor='start' x='676.188941' y='368.139134'>SG</text>
-        <text fill='#000000' font-family='Arial' font-size='15.635874' text-anchor='start' x='683.280135' y='359.073141'>~</text>
+        <polyline fill='none' points='699.277663 364.473233, 699.277663 415.324906' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='699.277663 364.502291, 699.277663 353.031897' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='699.277663' cy='339.047397' fill='none' rx='13.966570' ry='13.983919' stroke='#000000' stroke-width='1.000000' />
+        <text fill='#000000' font-family='Arial' font-size='15.351448' text-anchor='start' x='687.697222' y='346.449442'>SG</text>
+        <text fill='#000000' font-family='Arial' font-size='15.351448' text-anchor='start' x='693.777663' y='337.548365'>~</text>
       </g>
       <g id='New\Tranformator_2.ElmTr2'>
-        <polyline fill='none' points='637.050642 477.136082, 637.050642 438.290707' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='637.050642 528.929914, 637.050642 567.775289' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='637.050642 477.106485, 637.050642 478.692856' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='637.050642' cy='494.224791' fill='none' rx='15.547816' ry='15.567154' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='637.050642' cy='511.841205' fill='none' rx='15.547816' ry='15.567154' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='637.050642 528.959511, 637.050642 527.373140' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='648.489082 453.463660, 648.489082 415.324906' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='648.489082 504.315333, 648.489082 542.454088' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='648.489082 453.434602, 648.489082 454.992116' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='648.489082' cy='470.241516' fill='none' rx='15.265016' ry='15.283979' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='648.489082' cy='487.537478' fill='none' rx='15.265016' ry='15.283979' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='648.489082 504.344391, 648.489082 502.786877' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\PLTGU.ElmSym'>
-        <polyline fill='none' points='585.321150 386.496874, 585.321150 438.290707' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='585.321150 386.526471, 585.321150 374.843558' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='585.321150' cy='360.599958' fill='none' rx='14.225315' ry='14.243008' stroke='#000000' stroke-width='1.000000' />
-        <text fill='#000000' font-family='Arial' font-size='15.635874' text-anchor='start' x='572.729955' y='368.139134'>SG</text>
-        <text fill='#000000' font-family='Arial' font-size='15.635874' text-anchor='start' x='579.821150' y='359.073141'>~</text>
+        <polyline fill='none' points='597.700501 364.473233, 597.700501 415.324906' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='597.700501 364.502291, 597.700501 353.031897' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='597.700501' cy='339.047397' fill='none' rx='13.966570' ry='13.983919' stroke='#000000' stroke-width='1.000000' />
+        <text fill='#000000' font-family='Arial' font-size='15.351448' text-anchor='start' x='586.120060' y='346.449442'>SG</text>
+        <text fill='#000000' font-family='Arial' font-size='15.351448' text-anchor='start' x='592.200501' y='337.548365'>~</text>
       </g>
       <g id='New\Tranformator_1.ElmTr2'>
-        <polyline fill='none' points='352.538433 477.136082, 352.538433 438.290707' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='352.538433 528.929914, 352.538433 567.775289' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='352.538433 477.106485, 352.538433 478.692856' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='352.538433' cy='494.224791' fill='none' rx='15.547816' ry='15.567154' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='352.538433' cy='511.841205' fill='none' rx='15.547816' ry='15.567154' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='352.538433 528.959511, 352.538433 527.373140' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='369.151885 453.463660, 369.151885 415.324906' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='369.151885 504.315333, 369.151885 542.454088' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='369.151885 453.434602, 369.151885 454.992116' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='369.151885' cy='470.241516' fill='none' rx='15.265016' ry='15.283979' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='369.151885' cy='487.537478' fill='none' rx='15.265016' ry='15.283979' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='369.151885 504.344391, 369.151885 502.786877' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\PLTS.ElmSym'>
-        <polyline fill='none' points='404.267926 386.496874, 404.267926 438.290707' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='404.267926 386.526471, 404.267926 374.843558' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='404.267926' cy='360.599958' fill='none' rx='14.225315' ry='14.243008' stroke='#000000' stroke-width='1.000000' />
-        <text fill='#000000' font-family='Arial' font-size='15.635874' text-anchor='start' x='391.676731' y='368.139134'>SG</text>
-        <text fill='#000000' font-family='Arial' font-size='15.635874' text-anchor='start' x='398.767926' y='359.073141'>~</text>
+        <polyline fill='none' points='419.940466 364.473233, 419.940466 415.324906' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='419.940466 364.502291, 419.940466 353.031897' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='419.940466' cy='339.047397' fill='none' rx='13.966570' ry='13.983919' stroke='#000000' stroke-width='1.000000' />
+        <text fill='#000000' font-family='Arial' font-size='15.351448' text-anchor='start' x='408.360025' y='346.449442'>SG</text>
+        <text fill='#000000' font-family='Arial' font-size='15.351448' text-anchor='start' x='414.440466' y='337.548365'>~</text>
       </g>
       <g id='New\PLTA.ElmSym'>
-        <polyline fill='none' points='300.808940 386.496874, 300.808940 438.290707' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='300.808940 386.526471, 300.808940 374.843558' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='300.808940' cy='360.599958' fill='none' rx='14.225315' ry='14.243008' stroke='#000000' stroke-width='1.000000' />
-        <text fill='#000000' font-family='Arial' font-size='15.635874' text-anchor='start' x='288.217746' y='368.139134'>SG</text>
-        <text fill='#000000' font-family='Arial' font-size='15.635874' text-anchor='start' x='295.308940' y='359.073141'>~</text>
+        <polyline fill='none' points='318.363303 364.473233, 318.363303 415.324906' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='318.363303 364.502291, 318.363303 353.031897' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='318.363303' cy='339.047397' fill='none' rx='13.966570' ry='13.983919' stroke='#000000' stroke-width='1.000000' />
+        <text fill='#000000' font-family='Arial' font-size='15.351448' text-anchor='start' x='306.782862' y='346.449442'>SG</text>
+        <text fill='#000000' font-family='Arial' font-size='15.351448' text-anchor='start' x='312.863303' y='337.548365'>~</text>
+      </g>
+      <g id='New\Line_2.ElmLne'>
+        <polyline fill='none' points='508.820483 644.157433, 419.940466 644.157433, 419.940466 618.731597' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='508.820483 644.157433, 597.700501 644.157433, 597.700501 618.731597' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\Line_1.ElmLne'>
-        <polyline fill='none' points='494.794538 593.672205, 430.132672 593.672205, 430.132672 567.775289' stroke='#000000' stroke-width='1.000000' />
-        <polyline fill='none' points='494.794538 593.672205, 559.456403 593.672205, 559.456403 567.775289' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='508.820483 567.879924, 445.334757 567.879924, 445.334757 542.454088' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='508.820483 567.879924, 572.306210 567.879924, 572.306210 542.454088' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L101.ElmLod'>
+        <polyline fill='none' points='292.969012 542.454088, 292.969012 542.454088' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='292.969012 561.523174, 292.969012 542.425030' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='285.347823 561.523174, 300.590202 561.523174, 292.969012 580.595748, 285.347823 561.523174' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L201.ElmLod'>
+        <polyline fill='none' points='724.671954 542.454088, 724.671954 542.454088' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='724.671954 561.523174, 724.671954 542.425030' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='717.050765 561.523174, 732.293144 561.523174, 724.671954 580.595748, 717.050765 561.523174' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L405.ElmLod'>
+        <polyline fill='none' points='953.220570 695.009106, 953.220570 695.009106' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='953.220570 714.078193, 953.220570 694.980048' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='945.599381 714.078193, 960.841760 714.078193, 953.220570 733.150766, 945.599381 714.078193' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L404.ElmLod'>
+        <polyline fill='none' points='902.431989 695.009106, 902.431989 695.009106' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='902.431989 714.078193, 902.431989 694.980048' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='894.810799 714.078193, 910.053178 714.078193, 902.431989 733.150766, 894.810799 714.078193' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L403.ElmLod'>
+        <polyline fill='none' points='851.643408 695.009106, 851.643408 695.009106' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='851.643408 714.078193, 851.643408 694.980048' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='844.022218 714.078193, 859.264597 714.078193, 851.643408 733.150766, 844.022218 714.078193' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L402.ElmLod'>
+        <polyline fill='none' points='800.854826 695.009106, 800.854826 695.009106' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='800.854826 714.078193, 800.854826 694.980048' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='793.233637 714.078193, 808.476016 714.078193, 800.854826 733.150766, 793.233637 714.078193' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\Tranformator.ElmTr2'>
+        <polyline fill='none' points='775.460535 631.444515, 775.460535 618.731597' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='775.460535 682.296188, 775.460535 695.009106' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='775.460535 631.415457, 775.460535 632.972971' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='775.460535' cy='648.222371' fill='none' rx='15.265016' ry='15.283979' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='775.460535' cy='665.518332' fill='none' rx='15.265016' ry='15.283979' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='775.460535 682.325246, 775.460535 680.767732' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L401.ElmLod'>
+        <polyline fill='none' points='673.883373 618.731597, 673.883373 618.731597' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='673.883373 637.800684, 673.883373 618.702539' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='666.262183 637.800684, 681.504562 637.800684, 673.883373 656.873257, 666.262183 637.800684' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\Line 1-2.ElmLne'>
+        <polyline fill='none' points='648.489082 580.592842, 648.489082 542.454088' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='648.489082 580.592842, 648.489082 618.731597' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\Line_1-1.ElmLne'>
+        <polyline fill='none' points='369.151885 580.592842, 369.151885 542.454088' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='369.151885 580.592842, 369.151885 618.731597' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L305.ElmLod'>
+        <polyline fill='none' points='343.757594 618.731597, 343.757594 618.731597' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='343.757594 637.800684, 343.757594 618.702539' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='336.136404 637.800684, 351.378783 637.800684, 343.757594 656.873257, 336.136404 637.800684' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L304.ElmLod'>
+        <polyline fill='none' points='292.969012 618.731597, 292.969012 618.731597' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='292.969012 637.800684, 292.969012 618.702539' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='285.347823 637.800684, 300.590202 637.800684, 292.969012 656.873257, 285.347823 637.800684' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L303.ElmLod'>
+        <polyline fill='none' points='242.180431 618.731597, 242.180431 618.731597' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='242.180431 637.800684, 242.180431 618.702539' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='234.559242 637.800684, 249.801621 637.800684, 242.180431 656.873257, 234.559242 637.800684' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L302.ElmLod'>
+        <polyline fill='none' points='191.391850 618.731597, 191.391850 618.731597' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='191.391850 637.800684, 191.391850 618.702539' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='183.770660 637.800684, 199.013039 637.800684, 191.391850 656.873257, 183.770660 637.800684' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L301.ElmLod'>
+        <polyline fill='none' points='140.603268 618.731597, 140.603268 618.731597' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='140.603268 637.800684, 140.603268 618.702539' stroke='#000000' stroke-width='1.000000' />
+        <polyline fill='none' points='132.982079 637.800684, 148.224458 637.800684, 140.603268 656.873257, 132.982079 637.800684' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\66kV-2.ElmTerm'>
+        <polyline fill='none' points='572.277192 415.324906, 724.700972 415.324906' stroke='#000000' stroke-width='2.542331' />
+      </g>
+      <g id='New\66kV-1.ElmTerm'>
+        <polyline fill='none' points='292.939995 415.324906, 445.363774 415.324906' stroke='#000000' stroke-width='2.542331' />
       </g>
       <g id='New\N5_SS4_20kV.ElmTerm'>
-        <polyline fill='none' points='740.465297 723.156787, 973.336674 723.156787' stroke='#000000' stroke-width='2.589431' />
-      </g>
-      <g id='New\N3_SS3.ElmTerm'>
-        <polyline fill='none' points='67.957257 645.466038, 430.201638 645.466038' stroke='#000000' stroke-width='2.589431' />
+        <polyline fill='none' points='750.022721 695.009106, 978.658385 695.009106' stroke='#000000' stroke-width='2.542331' />
       </g>
       <g id='New\N4_SS4_150kV.ElmTerm'>
-        <polyline fill='none' points='559.407140 645.466038, 818.153129 645.466038' stroke='#000000' stroke-width='2.589431' />
+        <polyline fill='none' points='572.257843 618.731597, 826.297484 618.731597' stroke='#000000' stroke-width='2.542331' />
       </g>
-      <g id='New\150kV-2.ElmTerm'>
-        <polyline fill='none' points='559.426848 438.290707, 714.674436 438.290707' stroke='#000000' stroke-width='2.589431' />
+      <g id='New\N3_SS3_150kV.ElmTerm'>
+        <polyline fill='none' points='89.746975 618.731597, 445.402469 618.731597' stroke='#000000' stroke-width='2.542331' />
       </g>
-      <g id='New\150kV-1.ElmTerm'>
-        <polyline fill='none' points='274.914639 438.290707, 430.162227 438.290707' stroke='#000000' stroke-width='2.589431' />
+      <g id='New\N2_SS2_150kV.ElmTerm'>
+        <polyline fill='none' points='546.863552 542.454088, 800.903193 542.454088' stroke='#000000' stroke-width='2.542331' />
       </g>
-      <g id='New\N1_SS1.ElmTerm'>
-        <polyline fill='none' points='197.300692 567.775289, 456.046681 567.775289' stroke='#000000' stroke-width='2.589431' />
-      </g>
-      <g id='New\N2_SS2.ElmTerm'>
-        <polyline fill='none' points='533.542394 567.775289, 792.288383 567.775289' stroke='#000000' stroke-width='2.589431' />
-      </g>
-      <g id='New\L405.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='943.547886 719.272250, 951.307310 719.272250, 951.307310 727.041325, 943.547886 727.041325' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='947.427598' cy='723.156787' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L404.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='891.818393 719.272250, 899.577817 719.272250, 899.577817 727.041325, 891.818393 727.041325' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='895.698105' cy='723.156787' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L403.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='840.088901 719.272250, 847.848325 719.272250, 847.848325 727.041325, 840.088901 727.041325' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='843.968613' cy='723.156787' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L402.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='788.359408 719.272250, 796.118832 719.272250, 796.118832 727.041325, 788.359408 727.041325' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='792.239120' cy='723.156787' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\Tranformator.ElmTr2::LineAttribs'>
-        <polygon fill='#000000' points='762.494662 649.350576, 762.494662 641.581501, 770.254086 641.581501, 770.254086 649.350576' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='766.374374' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-        <polygon fill='#000000' points='770.254086 719.272250, 770.254086 727.041325, 762.494662 727.041325, 762.494662 719.272250' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='766.374374' cy='723.156787' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L401.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='659.035677 641.581501, 666.795101 641.581501, 666.795101 649.350576, 659.035677 649.350576' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='662.915389' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L305.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='322.793975 641.581501, 330.553399 641.581501, 330.553399 649.350576, 322.793975 649.350576' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='326.673687' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L304.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='271.064482 641.581501, 278.823906 641.581501, 278.823906 649.350576, 271.064482 649.350576' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='274.944194' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L303.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='219.334990 641.581501, 227.094414 641.581501, 227.094414 649.350576, 219.334990 649.350576' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='223.214702' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L302.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='167.605497 641.581501, 175.364921 641.581501, 175.364921 649.350576, 167.605497 649.350576' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='171.485209' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L301.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='115.876004 641.581501, 123.635428 641.581501, 123.635428 649.350576, 115.876004 649.350576' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='119.755716' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\Line_2.ElmLne::LineAttribs'>
-        <polygon fill='#000000' points='400.388214 662.299034, 400.388214 654.529959, 408.147638 654.529959, 408.147638 662.299034' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='404.267926' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-        <polygon fill='#000000' points='581.441438 662.299034, 581.441438 654.529959, 589.200862 654.529959, 589.200862 662.299034' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='585.321150' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\Line 1-2.ElmLne::LineAttribs'>
-        <polygon fill='#000000' points='633.170930 584.608285, 633.170930 576.839210, 640.930354 576.839210, 640.930354 584.608285' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='637.050642' cy='567.775289' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-        <polygon fill='#000000' points='640.930354 628.633042, 640.930354 636.402117, 633.170930 636.402117, 633.170930 628.633042' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='637.050642' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\Line_1-1.ElmLne::LineAttribs'>
-        <polygon fill='#000000' points='348.658721 584.608285, 348.658721 576.839210, 356.418145 576.839210, 356.418145 584.608285' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='352.538433' cy='567.775289' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-        <polygon fill='#000000' points='356.418145 628.633042, 356.418145 636.402117, 348.658721 636.402117, 348.658721 628.633042' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='352.538433' cy='645.466038' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L201.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='710.765169 563.890752, 718.524593 563.890752, 718.524593 571.659826, 710.765169 571.659826' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='714.644881' cy='567.775289' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-      </g>
-      <g id='New\L101.ElmLod::LineAttribs'>
-        <polygon fill='#000000' points='271.064482 563.890752, 278.823906 563.890752, 278.823906 571.659826, 271.064482 571.659826' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='274.944194' cy='567.775289' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
+      <g id='New\N1_SS1_150kV.ElmTerm'>
+        <polyline fill='none' points='216.737773 542.454088, 470.777414 542.454088' stroke='#000000' stroke-width='2.542331' />
       </g>
       <g id='New\PLTB.ElmSym::LineAttribs'>
-        <polygon fill='#000000' points='692.659847 421.457711, 692.659847 429.226786, 684.900423 429.226786, 684.900423 421.457711' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='688.780135' cy='438.290707' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='703.086807 398.798112, 703.086807 406.425863, 695.468520 406.425863, 695.468520 398.798112' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='699.277663' cy='415.324906' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\Tranformator_2.ElmTr2::LineAttribs'>
-        <polygon fill='#000000' points='633.170930 455.123703, 633.170930 447.354628, 640.930354 447.354628, 640.930354 455.123703' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='637.050642' cy='438.290707' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-        <polygon fill='#000000' points='640.930354 550.942293, 640.930354 558.711368, 633.170930 558.711368, 633.170930 550.942293' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='637.050642' cy='567.775289' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='644.679938 431.851699, 644.679938 424.223949, 652.298226 424.223949, 652.298226 431.851699' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='648.489082' cy='415.324906' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='652.298226 525.927294, 652.298226 533.555045, 644.679938 533.555045, 644.679938 525.927294' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='648.489082' cy='542.454088' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\PLTGU.ElmSym::LineAttribs'>
-        <polygon fill='#000000' points='589.200862 421.457711, 589.200862 429.226786, 581.441438 429.226786, 581.441438 421.457711' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='585.321150' cy='438.290707' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='601.509644 398.798112, 601.509644 406.425863, 593.891357 406.425863, 593.891357 398.798112' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='597.700501' cy='415.324906' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\Tranformator_1.ElmTr2::LineAttribs'>
-        <polygon fill='#000000' points='348.658721 455.123703, 348.658721 447.354628, 356.418145 447.354628, 356.418145 455.123703' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='352.538433' cy='438.290707' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-        <polygon fill='#000000' points='356.418145 550.942293, 356.418145 558.711368, 348.658721 558.711368, 348.658721 550.942293' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='352.538433' cy='567.775289' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='365.342741 431.851699, 365.342741 424.223949, 372.961028 424.223949, 372.961028 431.851699' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='369.151885' cy='415.324906' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='372.961028 525.927294, 372.961028 533.555045, 365.342741 533.555045, 365.342741 525.927294' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='369.151885' cy='542.454088' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\PLTS.ElmSym::LineAttribs'>
-        <polygon fill='#000000' points='408.147638 421.457711, 408.147638 429.226786, 400.388214 429.226786, 400.388214 421.457711' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='404.267926' cy='438.290707' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='423.749609 398.798112, 423.749609 406.425863, 416.131322 406.425863, 416.131322 398.798112' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='419.940466' cy='415.324906' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\PLTA.ElmSym::LineAttribs'>
-        <polygon fill='#000000' points='304.688652 421.457711, 304.688652 429.226786, 296.929229 429.226786, 296.929229 421.457711' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='300.808940' cy='438.290707' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='322.172447 398.798112, 322.172447 406.425863, 314.554160 406.425863, 314.554160 398.798112' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='318.363303' cy='415.324906' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\Line_2.ElmLne::LineAttribs'>
+        <polygon fill='#000000' points='416.131322 635.258391, 416.131322 627.630640, 423.749609 627.630640, 423.749609 635.258391' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='419.940466' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='593.891357 635.258391, 593.891357 627.630640, 601.509644 627.630640, 601.509644 635.258391' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='597.700501' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
       </g>
       <g id='New\Line_1.ElmLne::LineAttribs'>
-        <polygon fill='#000000' points='426.252960 584.608285, 426.252960 576.839210, 434.012384 576.839210, 434.012384 584.608285' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='430.132672' cy='567.775289' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
-        <polygon fill='#000000' points='555.576691 584.608285, 555.576691 576.839210, 563.336115 576.839210, 563.336115 584.608285' stroke='#000000' stroke-width='1.000000' />
-        <ellipse cx='559.456403' cy='567.775289' fill='#000000' rx='4.137768' ry='4.142915' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='441.525613 558.980881, 441.525613 551.353130, 449.143900 551.353130, 449.143900 558.980881' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='445.334757' cy='542.454088' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='568.497066 558.980881, 568.497066 551.353130, 576.115354 551.353130, 576.115354 558.980881' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='572.306210' cy='542.454088' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L101.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='289.159869 538.640212, 296.778156 538.640212, 296.778156 546.267963, 289.159869 546.267963' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='292.969012' cy='542.454088' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L201.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='720.862811 538.640212, 728.481098 538.640212, 728.481098 546.267963, 720.862811 546.267963' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='724.671954' cy='542.454088' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L405.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='949.411427 691.195231, 957.029714 691.195231, 957.029714 698.822982, 949.411427 698.822982' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='953.220570' cy='695.009106' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L404.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='898.622845 691.195231, 906.241133 691.195231, 906.241133 698.822982, 898.622845 698.822982' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='902.431989' cy='695.009106' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L403.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='847.834264 691.195231, 855.452551 691.195231, 855.452551 698.822982, 847.834264 698.822982' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='851.643408' cy='695.009106' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L402.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='797.045683 691.195231, 804.663970 691.195231, 804.663970 698.822982, 797.045683 698.822982' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='800.854826' cy='695.009106' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\Tranformator.ElmTr2::LineAttribs'>
+        <polygon fill='#000000' points='771.651392 622.545472, 771.651392 614.917721, 779.269679 614.917721, 779.269679 622.545472' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='775.460535' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='779.269679 691.195231, 779.269679 698.822982, 771.651392 698.822982, 771.651392 691.195231' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='775.460535' cy='695.009106' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L401.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='670.074229 614.917721, 677.692516 614.917721, 677.692516 622.545472, 670.074229 622.545472' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='673.883373' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\Line 1-2.ElmLne::LineAttribs'>
+        <polygon fill='#000000' points='644.679938 558.980881, 644.679938 551.353130, 652.298226 551.353130, 652.298226 558.980881' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='648.489082' cy='542.454088' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='652.298226 602.204803, 652.298226 609.832554, 644.679938 609.832554, 644.679938 602.204803' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='648.489082' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\Line_1-1.ElmLne::LineAttribs'>
+        <polygon fill='#000000' points='365.342741 558.980881, 365.342741 551.353130, 372.961028 551.353130, 372.961028 558.980881' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='369.151885' cy='542.454088' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+        <polygon fill='#000000' points='372.961028 602.204803, 372.961028 609.832554, 365.342741 609.832554, 365.342741 602.204803' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='369.151885' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L305.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='339.948450 614.917721, 347.566737 614.917721, 347.566737 622.545472, 339.948450 622.545472' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='343.757594' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L304.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='289.159869 614.917721, 296.778156 614.917721, 296.778156 622.545472, 289.159869 622.545472' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='292.969012' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L303.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='238.371288 614.917721, 245.989575 614.917721, 245.989575 622.545472, 238.371288 622.545472' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='242.180431' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L302.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='187.582706 614.917721, 195.200993 614.917721, 195.200993 622.545472, 187.582706 622.545472' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='191.391850' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
+      </g>
+      <g id='New\L301.ElmLod::LineAttribs'>
+        <polygon fill='#000000' points='136.794125 614.917721, 144.412412 614.917721, 144.412412 622.545472, 136.794125 622.545472' stroke='#000000' stroke-width='1.000000' />
+        <ellipse cx='140.603268' cy='618.731597' fill='#000000' rx='4.062506' ry='4.067553' stroke='#000000' stroke-width='1.000000' />
       </g>
     </g>
     <g id='Labels'>
-      <g id='New\L405.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='934.427598' y='780.846238'>L405</text>
-      </g>
-      <g id='New\L404.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='882.698105' y='780.846238'>L404</text>
-      </g>
-      <g id='New\L403.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='830.968613' y='780.846238'>L403</text>
-      </g>
-      <g id='New\L402.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='779.239120' y='780.846238'>L402</text>
-      </g>
-      <g id='New\Tranformator.ElmTr2::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' transform='rotate(270.000000,715.058716,716.851836)' x='715.058716' y='726.973831'>Tranformator</text>
-      </g>
-      <g id='New\L401.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='650.525625' y='701.808633'>L401</text>
-      </g>
-      <g id='New\L305.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='313.673687' y='703.155489'>L305</text>
-      </g>
-      <g id='New\L304.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='261.944194' y='703.155489'>L304</text>
-      </g>
-      <g id='New\L303.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='210.214702' y='703.155489'>L303</text>
-      </g>
-      <g id='New\L302.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='158.485209' y='703.155489'>L302</text>
-      </g>
-      <g id='New\L301.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='107.755716' y='703.155489'>L301</text>
-      </g>
-      <g id='New\Line_2.ElmLne::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='477.794537' y='648.959232'>Line_2</text>
-      </g>
-      <g id='New\Line 1-2.ElmLne::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' transform='rotate(270.000000,605.213680,628.152160)' x='605.213680' y='638.274155'>Line 1-2</text>
-      </g>
-      <g id='New\Line_1-1.ElmLne::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' transform='rotate(270.000000,320.067091,627.127642)' x='320.067091' y='637.249637'>Line_1-1</text>
-      </g>
-      <g id='New\L201.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='673.413529' y='594.662873'>L201</text>
-      </g>
-      <g id='New\L101.ElmLod::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='233.712842' y='594.662873'>L101</text>
-      </g>
       <g id='New\PLTB.ElmSym::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='676.124495' y='326.544103'>PLTB</text>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='686.606665' y='305.611054'>PLTB</text>
       </g>
       <g id='New\Tranformator_2.ElmTr2::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' transform='rotate(270.000000,585.734985,541.580884)' x='585.734985' y='551.702879'>Tranformator_2</text>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' transform='rotate(270.000000,598.106808,517.437323)' x='598.106808' y='527.375194'>Tranformator_2</text>
       </g>
       <g id='New\PLTGU.ElmSym::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='567.821150' y='326.544103'>PLTGU</text>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='580.200501' y='305.611054'>PLTGU</text>
       </g>
       <g id='New\Tranformator_1.ElmTr2::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' transform='rotate(270.000000,301.222775,540.579640)' x='301.222775' y='550.701636'>Tranformator_1</text>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' transform='rotate(270.000000,318.769611,516.436081)' x='318.769611' y='526.373951'>Tranformator_1</text>
       </g>
       <g id='New\PLTS.ElmSym::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='390.767926' y='326.544103'>PLTS</text>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='406.440466' y='305.611054'>PLTS</text>
       </g>
       <g id='New\PLTA.ElmSym::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='286.808940' y='326.544103'>PLTA</text>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='304.363303' y='305.611054'>PLTA</text>
+      </g>
+      <g id='New\Line_2.ElmLne::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='491.820483' y='622.161264'>Line_2</text>
       </g>
       <g id='New\Line_1.ElmLne::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='11.246661' text-anchor='start' x='478.794537' y='571.268482'>Line_1</text>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='492.820483' y='545.883755'>Line_1</text>
+      </g>
+      <g id='New\L101.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='252.269352' y='568.852571'>L101</text>
+      </g>
+      <g id='New\L201.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='683.972293' y='568.852571'>L201</text>
+      </g>
+      <g id='New\L405.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='940.220570' y='751.649153'>L405</text>
+      </g>
+      <g id='New\L404.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='889.431989' y='751.649153'>L404</text>
+      </g>
+      <g id='New\L403.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='838.643408' y='751.649153'>L403</text>
+      </g>
+      <g id='New\L402.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='787.854826' y='751.649153'>L402</text>
+      </g>
+      <g id='New\Tranformator.ElmTr2::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' transform='rotate(270.000000,725.078262,689.410725)' x='725.078262' y='699.348595'>Tranformator</text>
+      </g>
+      <g id='New\L401.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='661.500699' y='674.049287'>L401</text>
+      </g>
+      <g id='New\Line 1-2.ElmLne::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' transform='rotate(270.000000,617.231205,602.106007)' x='617.231205' y='612.043878'>Line 1-2</text>
+      </g>
+      <g id='New\Line_1-1.ElmLne::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' transform='rotate(270.000000,337.271165,601.109232)' x='337.271165' y='611.047102'>Line_1-1</text>
+      </g>
+      <g id='New\L305.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='330.757594' y='675.371643'>L305</text>
+      </g>
+      <g id='New\L304.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='279.969012' y='675.371643'>L304</text>
+      </g>
+      <g id='New\L303.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='229.180431' y='675.371643'>L303</text>
+      </g>
+      <g id='New\L302.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='178.391850' y='675.371643'>L302</text>
+      </g>
+      <g id='New\L301.ElmLod::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='11.042078' text-anchor='start' x='128.603268' y='675.371643'>L301</text>
+      </g>
+      <g id='New\66kV-2.ElmTerm::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='15.110212' text-anchor='start' x='522.497071' y='419.843440'>66kV-2</text>
+      </g>
+      <g id='New\66kV-1.ElmTerm::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='15.110212' text-anchor='start' x='245.988875' y='419.843440'>66kV-1</text>
       </g>
       <g id='New\N5_SS4_20kV.ElmTerm::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='15.390168' text-anchor='start' x='989.123192' y='727.759040'>N5_SS4_20kV</text>
-      </g>
-      <g id='New\N3_SS3.ElmTerm::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='15.390168' text-anchor='start' x='4.957936' y='650.068290'>N3_SS3</text>
+        <text fill='#000000' font-family='Arial' font-size='15.110212' text-anchor='start' x='954.020525' y='684.312295'>N5_SS4_20kV</text>
       </g>
       <g id='New\N4_SS4_150kV.ElmTerm::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='15.390168' text-anchor='start' x='825.927469' y='650.068290'>N4_SS4_150kV</text>
+        <text fill='#000000' font-family='Arial' font-size='15.110212' text-anchor='start' x='811.243590' y='612.038825'>N4_SS4_150kV</text>
       </g>
-      <g id='New\150kV-2.ElmTerm::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='15.390168' text-anchor='start' x='502.576696' y='442.892959'>150kV-2</text>
+      <g id='New\N3_SS3_150kV.ElmTerm::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='15.110212' text-anchor='start' x='19.483487' y='611.238017'>N3_SS3_150kV</text>
       </g>
-      <g id='New\150kV-1.ElmTerm::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='15.390168' text-anchor='start' x='220.908847' y='442.892959'>150kV-1</text>
+      <g id='New\N2_SS2_150kV.ElmTerm::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='15.110212' text-anchor='start' x='763.801870' y='534.960508'>N2_SS2_150kV</text>
       </g>
-      <g id='New\N1_SS1.ElmTerm::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='15.390168' text-anchor='start' x='140.470246' y='572.377541'>N1_SS1</text>
-      </g>
-      <g id='New\N2_SS2.ElmTerm::NameBox 0'>
-        <text fill='#000000' font-family='Arial' font-size='15.390168' text-anchor='start' x='800.538629' y='572.377541'>N2_SS2</text>
+      <g id='New\N1_SS1_150kV.ElmTerm::NameBox 0'>
+        <text fill='#000000' font-family='Arial' font-size='15.110212' text-anchor='start' x='123.373654' y='534.960508'>N1_SS1_150kV</text>
       </g>
     </g>
   </g>
