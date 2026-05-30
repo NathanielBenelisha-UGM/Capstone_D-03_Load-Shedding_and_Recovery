@@ -78,8 +78,10 @@ load_memory     = {}
 # =========================================================
 # MILP LOAD SHEDDING SOLVER
 # =========================================================
-def solve_milp_shedding(deficit, live_loads, current_tripped=set()):
+def solve_milp_shedding(deficit, live_loads, current_tripped=set(), freq_hz=None):
     import pulp
+    import time
+    start_time = time.perf_counter()
     
     prob = pulp.LpProblem("LoadShedding", pulp.LpMinimize)
     
@@ -96,9 +98,6 @@ def solve_milp_shedding(deficit, live_loads, current_tripped=set()):
         prio_level = l.get('priority', 2)
         weight = MILP_PRIORITY_WEIGHTS.get(prio_level, 1)
         
-        # Anti-Oscillation: Jika beban sudah mati (tripped), berikan sedikit diskon biaya (10%)
-        # Ini mencegah MILP menukar-nukar beban mati yang memiliki prioritas SAMA.
-        # Namun diskon ini tidak boleh terlalu besar agar tidak mengalahkan beban dengan prioritas BERBEDA.
         if l['name'] in current_tripped:
             weight = weight * 0.90 
             
@@ -108,13 +107,40 @@ def solve_milp_shedding(deficit, live_loads, current_tripped=set()):
 
     solver = pulp.PULP_CBC_CMD(msg=0)
     prob.solve(solver)
-
+    
+    end_time = time.perf_counter()
+    exec_time = end_time - start_time
+    
     status   = pulp.LpStatus[prob.status]
     shed_set = set()
+    total_shed = 0
+    
     if status == 'Optimal':
         for load in live_loads:
             if pulp.value(shed_vars[load['name']]) > 0.5:
                 shed_set.add(load['name'])
+                total_shed += load['mw']
+                
+        # Pretty Print untuk UFLS Trigger Asli
+        if freq_hz is not None and len(shed_set) > 0 and shed_set != current_tripped:
+            print("\n=============================================================")
+            print("[MILP SOLVER] EMERGENCY UFLS TRIGGERED!")
+            print(f"System Frequency: {freq_hz:.2f} Hz")
+            print(f"Power Deficit   : {deficit:.1f} MW")
+            print("-------------------------------------------------------------")
+            print("Executing MILP Optimization (CBC Solver)...")
+            print(f"Optimization Status : {status}")
+            print(f"Solving Time        : {exec_time:.3f} seconds\n")
+            print("[ACTION REQUIRED] Shedding the following loads:")
+            
+            prio_map = {2: 'Non-Essential', 3: 'Essential', 4: 'Critical'}
+            for load in live_loads:
+                if load['name'] in shed_set:
+                    ptype = prio_map.get(load.get('priority', 2), 'Unknown')
+                    print(f"  - {load['name']} ({ptype}) : {load['mw']} MW")
+            
+            print(f"Total Power Shed      : {total_shed:.1f} MW")
+            print("=============================================================\n")
 
     return shed_set, status
 
@@ -237,7 +263,7 @@ def background_monitoring():
                     log_msg = f"DEFISIT TERTANGANI. Mempertahankan {len(shed_set)} beban mati ({shed_mw:.0f}MW)."
                 else:
                     # Perlu run MILP karena defisit bertambah atau frekuensi kritis
-                    shed_set, milp_status = solve_milp_shedding(calc_deficit, live_loads, current_tripped)
+                    shed_set, milp_status = solve_milp_shedding(calc_deficit, live_loads, current_tripped, freq_hz=freq_hz)
                     if milp_status != 'Optimal':
                         shed_set = {load['name'] for load in live_loads}
                         
