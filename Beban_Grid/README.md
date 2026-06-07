@@ -36,8 +36,12 @@ $$
 
 Di mana $R$ adalah *Droop Setting* (biasanya 4-5%). *Droop control* ini memungkinkan beberapa pembangkit (seperti PLTGU dan PLTA) saling berbagi beban pertolongan secara independen sesuai dengan kapasitas masing-masing generator tanpa perlu komunikasi terpusat.
 
-### 2.3 Automatic Generation Control / AGC (Kontrol Sekunder)
-*Governor Droop* menghentikan kejatuhan lebih lanjut, tapi ia akan meninggalkan frekuensi "bertengger" pada angka tunak (*steady state*) seperti 49.8 Hz. Di sini, integrasi AGC (*Integral Controller*) dihidupkan untuk perlahan-lahan (sesuai *Ramp Rate* masing-masing mesin) mendorong frekuensi murni kembali ke batas absolut nominal **50.00 Hz**.
+### 2.3 Automatic Generation Control / AGC (Instantaneous Dispatch)
+Secara desain murni, *Governor Droop* menghentikan kejatuhan lebih lanjut, namun akan meninggalkan frekuensi "bertengger" pada angka tunak (*steady state*) seperti 49.8 Hz. Di sini, algoritma AGC mengambil alih.
+
+**Karakteristik Khusus Simulasi Ini (Instant AGC):**
+Dalam `load.py`, AGC diprogram untuk bersifat "Maha Tahu" dan Instan (`required_dispatch = total_load`). Ketika beban berfluktuasi naik (misal dari 150 MW ke 152 MW), sistem langsung memberikan target daya baru ke semua generator. Didukung dengan *Ramp Multiplier* yang dipercepat (hingga 4x lipat untuk *inverter*), generator sanggup mengejar defisit skala kecil (seperti 2 MW) dalam 1 siklus perhitungan (0.1 detik).
+Akibatnya, `total_gen` langsung menyamai `total_load` di detik yang sama, nilai `delta_p_pu` menjadi 0, dan frekuensi jaringan terkunci stabil tanpa sempat anjlok ke bawah.
 
 ## 3. Komunikasi Dua-Arah dengan Modbus PLC
 Setiap iterasi per 0.1 detik, `load.py` tidak hanya menghitung fisika, melainkan juga menembakkan hasilnya melalui protokol Modbus TCP langsung ke ruang Holding Register Virtual PLC. Pada saat yang bersamaan, mesin `load.py` membaca *feedback* `Coil` (apakah sebuah sirkuit telah diputus oleh sinyal *Trip* HMI / UFLS) dan seketika menggugurkan permintaan beban dari generator tersebut pada siklus iterasi fisika berikutnya.

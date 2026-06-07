@@ -29,7 +29,7 @@ Ini adalah siklus pemantauan abadi (*while True*) yang bekerja 10 kali per detik
 *   **Baris 240-244:** Fase "Kalkulasi". Menghitung apakah `Total Beban > Kapasitas Generator yang Hidup`. Jika iya, didapatlah angka `capacity_deficit`.
 *   **Baris 254-272 (Skenario Kritis):** Jika Frekuensi anjlok di bawah `49.0` Hz! Fungsi ini buru-buru memanggil `solve_milp_shedding(...)` dan mendelegasikan hasil putusannya (nama-nama beban) ke daftar `shed_set`.
 *   **Baris 274-288 (Skenario Reprioritisasi):** Jika frekuensi normal, tapi generator kekurangan daya pelan-pelan (atau Anda tiba-tiba mengubah rumah sakit menjadi non-esensial via HMI), ia secara diam-diam memanggil MILP lagi tanpa membuat panik layar Terminal.
-*   **Baris 290-330 (Skenario Pemulihan/Restorasi):** Jika sistem sudah aman dan frekuensi $> 49.95$ Hz selama 1 detik penuh (10 siklus), SCADA pelan-pelan membatalkan pemutusan beban satu per satu (*Cold Load Pick-Up*) sesuai urutan.
+*   **Baris 290-330 (Skenario Pemulihan / *Smart Margin Restoration*):** Jika sistem sudah aman dan frekuensi stabil $> 49.95$ Hz. SCADA akan mencoba memulihkan beban yang mati satu per satu. **Trik Cerdasnya:** SCADA memiliki fitur pengecekan `is_settled` (memastikan nilai aktual beban yang baru direstorasi tidak kurang dari 90% target potensial dayanya sebelum menyalakan beban lain) dengan tambahan *timer* pemulihan minimal 1 detik (10 siklus). SCADA juga secara cerdas menghitung *Kapasitas Efektif* menggunakan margin batas tarikan sesaat **+20 MW** dari *Daya Riil* generator saat ini.
 *   **Baris 332-342 (Skenario Prediktif/N-1):** Ini adalah tingkat kecerdasan lanjut. Meskipun sistem sedang aman, SCADA sudah meramal: *"Bagaimana kalau PLTA tiba-tiba mati detik depan?"*. Ia memanggil MILP secara simulasi untuk tiap generator. Hasilnya (*Contingency Matrix*) disiapkan jauh-jauh hari di memori.
 *   **Baris 348-360 (Eksekusi Fisik):** Sinyal mematikan tegangan! Daftar `shed_set` dikirimkan secara massal kembali ke PLC melalui perintah `client.write_coil`. Di detik inilah lampu di lapangan benar-benar mati.
 *   **Baris 362-388 (Load Flow Visual):** Memanggil file `loadflow_module.py` untuk menggambar ulang grafik Aliran Daya AC secara *background* jika ada beban yang mati, agar tidak membekukan (*freeze*) kinerja *looping* utama SCADA.
@@ -38,7 +38,8 @@ Ini adalah siklus pemantauan abadi (*while True*) yang bekerja 10 kali per detik
 ## Blok 5: Rute Komunikasi API dari Web (Baris 417 - 595)
 Ini adalah kumpulan fungsi penerima *request* ketika Anda mengklik tombol-tombol di layar Web (HMI).
 *   **Baris 426 (`gen_control`):** Menangkap klik tombol *Trip* Generator di Web, lalu memerintahkan Coil PLC untuk mati.
-*   **Baris 441 (`set_load_interrupt`):** Menangkap *slider* manipulasi daya beban di Web (Override channel). Mengirim nilainya ke laci khusus di PLC (`ADDR_OVERRIDE`).
+*   **Baris 455 (`set_load_interrupt`):** Menangkap *slider* manipulasi daya beban di Web (Override channel). Mengirim nilainya ke laci khusus di PLC (`ADDR_OVERRIDE`).
+*   **Baris 489 (`set_gen_interrupt`):** Menangkap nilai manual daya (MW) masing-masing generator dari HMI untuk mengabaikan kontrol otomatis (Override Generator).
 *   **Baris 541 (`set_load_priority`):** Menangkap menu geser prioritas beban di Web. Sangat keren karena fungsi ini tidak hanya mengubah memori sementara, tapi juga menjalankan *RegEx* (baris 525-540) untuk **mengedit paksa teks tulisan** di dalam file `app.py` itu sendiri secara langsung. Hal ini membuat prioritas baru tersebut menjadi permanen (*persist*) walaupun PC direstart.
 
 ## Penutup

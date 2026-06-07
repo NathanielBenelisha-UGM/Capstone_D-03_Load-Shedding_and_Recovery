@@ -20,7 +20,7 @@ Fungsi ini membangun cetak biru (*blueprint*) dari *Single Line Diagram* (SLD) y
 
 ## Blok 3: Pengekstrak Hasil `get_results_dict` (Baris 98 - 152)
 Setelah hukum Ohm dihitung, fungsi ini bertugas menerjemahkan matriks ribuan baris dari `pandapower` menjadi kumpulan *dictionary* sederhana agar mudah dikirimkan ke JavaScript di Web HMI.
-*   **Baris 99-101 (`v_profile`):** Mengambil profil tegangan (*Voltage Magnitude / vm_pu*) dari tiap bus. Normalnya bernilai $1.0$ p.u. (per-unit). Jika anjlok di bawah $0.95$ p.u, sistem dalam bahaya.
+*   **Baris 99-101 (`v_profile`):** Mengambil profil tegangan (*Voltage Magnitude / vm_pu*) dari tiap bus. Normalnya bernilai $1.0$ p.u. (per-unit). Jika anjlok di bawah $0.95$ p.u, sistem dalam bahaya. **Fitur Keamanan (*NaN Handling*):** Jika ada bus yang mati total akibat *Breaker Intertrip*, Pandapower akan mengembalikan nilai cacat (NaN). Fungsi ini secara cerdas mengubahnya menjadi `0 pu` (`fillna(0)`) agar JavaScript di Web tidak *crash*.
 *   **Baris 103-109 (`t_load`, `l_load`):** Mengambil *loading percent* (persentase beban) dari Trafo dan Saluran transmisi. Jika $> 80\%$, kabel berwarna kuning di HMI. Jika $> 100\%$, kabel berwarna merah.
 *   **Baris 116-132:** Menghitung berapa Megawatt daya yang terpaksa dikeluarkan oleh *Slack Bus* untuk menyeimbangkan jaringan.
 *   **Baris 142-152:** Membungkus semuanya (*buses, trafos, lines, slack_mw, min_v, max_v*) ke dalam format JSON/Dictionary untuk dikirim pulang ke `app.py`.

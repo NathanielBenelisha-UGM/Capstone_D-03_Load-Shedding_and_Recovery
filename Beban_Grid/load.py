@@ -7,7 +7,7 @@ from pymodbus.client import ModbusTcpClient
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-plc_ip = os.getenv('PLC_IP', '192.168.1.13')
+plc_ip = os.getenv('PLC_IP', '192.168.100.195')
 plc_port = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(plc_ip, port=plc_port)
 client.connect()
@@ -159,11 +159,11 @@ print("=" * 65)
 # LOOP UTAMA
 # =========================================================
 DT = 0.1   # Refresh rate 10x per detik (0.1s)
+load_noise_factors = [0.0] * 12
 
 while True:
     try:
         hour = sim_time % 24
-
         # ─────────────────────────────────────────────
         # 1. BACA STATUS BREAKER (Generator & Beban)
         # ─────────────────────────────────────────────
@@ -187,10 +187,12 @@ while True:
 
         target_pct = get_load_pct(hour)
         override_ch = []
+        total_load_with_noise = 0.0
+        total_load_modbus_int = 0
         for i, name in enumerate(load_names):
             is_overridden = False
             if override[i] > 0:
-                potential = min(override[i], max_vals[i])
+                potential = min(override[i] / 10.0, max_vals[i])
                 override_ch.append(name)
                 is_overridden = True
             else:
@@ -213,15 +215,19 @@ while True:
                 
                 # Tambahkan noise dinamis agar terlihat real-time (hanya jika sudah dekat target)
                 if abs(diff) < max_vals[i] * 0.05:
-                    noise = random.uniform(-0.03, 0.03) * max_vals[i]
+                    load_noise_factors[i] += random.uniform(-0.01, 0.01)
+                    load_noise_factors[i] = max(-0.05, min(0.05, load_noise_factors[i]))
+                    noise = load_noise_factors[i] * max_vals[i]
                 else:
                     noise = 0.0
                     
                 final_val = current_loads[i] + noise
                 final_val = max(1.0, min(float(max_vals[i]), final_val))
                 
-            # Tulis nilai aktual ke %MW0--%MW11
-            client.write_register(address=ADDR_LOADS + i, value=int(round(final_val)))
+            total_load_with_noise += final_val
+            total_load_modbus_int += int(round(final_val * 10))
+            # Tulis nilai aktual ke %MW0--%MW11 (x10 untuk resolusi 1 desimal Modbus)
+            client.write_register(address=ADDR_LOADS + i, value=int(round(final_val * 10)))
             
         # Hitung total load dari array current_loads yang murni tanpa noise
         # Ini penting agar generator dispatch tidak ikut bergetar akibat noise.
@@ -276,7 +282,7 @@ while True:
         # ─────────────────────────────────────────────
         # 4. HITUNG FREKUENSI SISTEM (Swing Equation)
         # ─────────────────────────────────────────────
-        delta_p_pu = (total_gen - total_load) / S_BASE
+        delta_p_pu = (total_gen - total_load_with_noise) / S_BASE
 
         h_weighted = sum(GEN_CFG[g]['H'] * gen_output[g] for g in GEN_ORDER if gen_online[g])
         h_eff = h_weighted / max(total_gen, 1.0)
@@ -322,11 +328,10 @@ while True:
         # ─────────────────────────────────────────────
         # 5. TULIS KE PLC
         # ─────────────────────────────────────────────
-        # Beban → %MW0–%MW11
-        client.write_registers(address=ADDR_LOADS, values=[int(round(c)) for c in current_loads])
+        # (Beban sudah ditulis secara individual di dalam loop beban di atas)
 
-        # Generator output → %MW30–%MW33 (integer MW)
-        gen_vals = [int(round(gen_output[g])) for g in GEN_ORDER]
+        # Generator output → %MW30–%MW33 (integer MW x10 untuk presisi 1 desimal)
+        gen_vals = [int(round(gen_output[g] * 10)) for g in GEN_ORDER]
         client.write_registers(address=ADDR_GEN_OUT, values=gen_vals)
 
         # Jam simulasi → %MW20–%MW21
@@ -334,7 +339,7 @@ while True:
         m_i = int((hour - h_i) * 60)
         client.write_registers(address=ADDR_CLOCK, values=[h_i, m_i])
 
-        # Frekuensi → %MW54 (× 100 agar integer: 5000 = 50.00 Hz)
+        # Frekuensi → %MW54 (× 100 agar presisi 2 desimal: 5000 = 50.00 Hz)
         freq_int = int(round(freq * 100))
         client.write_register(address=ADDR_FREQ, value=freq_int)
 
@@ -343,14 +348,15 @@ while True:
         # 5. LOG TERMINAL
         # ─────────────────────────────────────────────
         ov_str = f" | OV:{override_ch}" if override_ch else ""
+        total_gen_modbus = sum(gen_vals)
         print(
             f"[{h_i:02d}:{m_i:02d}:{s_i:02d}] "
-            f"LOAD:{total_load:.1f}MW | "
-            f"GEN:{total_gen:.0f}MW "
-            f"(PLTA:{gen_output['PLTA']:.0f} "
-            f"PLTS:{gen_output['PLTS']:.0f} "
-            f"PLTGU:{gen_output['PLTGU']:.0f} "
-            f"PLTB:{gen_output['PLTB']:.0f}) | "
+            f"LOAD:{total_load_modbus_int / 10.0:.1f}MW | "
+            f"GEN:{total_gen_modbus / 10.0:.1f}MW "
+            f"(PLTA:{gen_output['PLTA']:.1f} "
+            f"PLTS:{gen_output['PLTS']:.1f} "
+            f"PLTGU:{gen_output['PLTGU']:.1f} "
+            f"PLTB:{gen_output['PLTB']:.1f}) | "
             f"f={freq:.3f}Hz RoCoF={rocof:+.3f}Hz/s{ov_str}"
         )
 

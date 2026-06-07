@@ -29,12 +29,21 @@ $$
 *   **Penyelesaian:** Algoritma menerapkan Diskon Objektif 10% ($W_i \times 0.90$) pada bobot biaya beban yang *sedang* dalam kondisi padam. Ini mencegah pertukaran bodoh antara dua prioritas yang sama.
 *   **Pertukaran Dinamis:** Meskipun terkunci, jika operator lewat HMI menaikkan level utilitas beban padam menjadi "Kritis", algoritma secara instan akan memprioritaskannya lagi, mengalahkan diskon tersebut, dan merestorasi bebannya sembari menumbalkan beban prioritas rendah lain.
 
+### 1.3 Smart Margin Restoration (Soft-Start Recovery)
+Ketika kapasitas mencukupi dan SCADA bersiap memulihkan (menyala-ulangkan) beban yang mati, algoritma tidak secara mentah melihat Kapasitas Maksimal (*Rated*). SCADA menghitung **Kapasitas Efektif** dengan cara:
+`Kapasitas Efektif = Daya Riil Saat Ini + Margin (20 MW)`
+Hal ini memastikan bahwa beban besar tidak dimasukkan secara mendadak yang dapat membuat turbin *stall* (kolaps). Sistem akan menyalakan beban 1 per 1, menunggunya selesai *soft-start*, dan mengonfirmasi kestabilan frekuensi sebelum menyalakan beban mati berikutnya.
+
 ## 2. Backend Arsitektur (app.py)
 
 Skrip `app.py` bertindak sebagai *SCADA Master Poller* sekaligus Web Server.
 *   **Modbus TCP Client (`pymodbus`)**: Berlari dalam *thread* terpisah secara asinkron dengan *polling rate* 10 Hz (100ms) untuk mengambil memori Word (`%MW`) dari Virtual PLC. 
 *   **Multi-threading**: Memisahkan antrean komputasi MILP yang intensif CPU dengan pengiriman Socket.IO agar antarmuka tidak tertunda (*hang*).
 *   **Matriks Kontingensi (N-1):** Selalu menghitung terlebih dahulu (*predictive*) konsekuensi andai kata generator terbesar jatuh seketika, menghasilkan *Preselection* target warna merah pada HMI.
+
+### 2.1 Sinkronisasi Loadflow & Fisika (Breaker Intertrip)
+Simulasi kelistrikan (*Loadflow*) dijalankan menggunakan *engine* **Pandapower** (`loadflow_module.py`). 
+Sebagai pengaman (*safety mechanism*), sistem dilengkapi **Breaker Intertrip Logic**: jika seluruh generator di sebuah bus (misal PLTA & PLTS) padam total, maka *Trafo* yang menyambungkan bus tersebut akan langsung diputus (`in_service = False`). Ini menjamin tegangan di bus tersebut jatuh menjadi `0 pu`, merefleksikan kondisi mati total tanpa adanya aliran listrik merambat balik (*back-feed*). HMI *Frontend* (`main.js`) juga diprogram secara khusus untuk mengabaikan pewarnaan *Heatmap* pada bus yang sedang mati agar warna abu-abunya tidak tertimpa.
 
 ## 3. Konfigurasi Jaringan & Perubahan IP Address
 

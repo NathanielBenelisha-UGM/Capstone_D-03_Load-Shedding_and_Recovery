@@ -105,6 +105,11 @@ $$
 ### 3.3 Pemulihan Frekuensi & Dispatch
 Pada pembaruan sistem saat ini, pemulihan frekuensi (*Frequency Recovery*) dan respons sekunder sepenuhnya ditangani secara fisika nyata oleh algoritma *Dispatch* dan *Droop Control* pada generator di dalam `load.py`. Ketika SCADA memutus beban yang cukup untuk mengatasi defisit, keseimbangan energi kinetik pulih secara natural sehingga frekuensi kembali mengarah ke **50.0 Hz**, tanpa menggunakan intervensi rumus matematis buatan (*artificial mathematical modifications*).
 
+### 3.4 Asumsi dan Batasan Simulasi Dinamika Fisika (*Soft-Start*)
+Di dunia nyata, penambahan beban pada gardu distribusi terjadi secara masif dalam bentuk *step input* yang memicu *Cold Load Pick-up* (CLPU) atau *Inrush Current* yang tajam seketika. Pada simulasi ini, proses restorasi atau penyalaan beban diasumsikan menggunakan karakteristik **Soft-Start** dengan laju rambat lambat (maksimal 10% kapasitas per detik). Asumsi sistematis ini diambil dengan dua landasan akademis utama:
+1. **Dinamika Kelompok Beban:** *Soft-Start* merepresentasikan agregasi ribuan konsumen pada satu blok *feeder* (misal 20 MW) yang secara perlahan masuk dan membebani tegangan dalam rentang beberapa detik awal, alih-alih menyala total di saat yang bersamaan (mengabaikan *diversity factor*).
+2. **Stabilitas Solusi Numerik:** Simulasi ini memproses *Swing Equation* dengan metode integrasi Euler dalam skala milidetik. Loncatan impulsif seketika (contoh: 0 ke 20 MW di dt=0) akan mengakibatkan anomali matematis (*mathematical singularity*) yang dapat membuat frekuensi meloncat/teleportasi tidak wajar. Dengan beban (*Soft-Start*) dan generator (*Ramp Rate*) yang dibatasi laju pergerakannya masing-masing pada **10% per detik**, sistem mampu menjaga kalkulasi transien kelistrikan tetap halus, berkelanjutan, dan representatif.
+
 ---
 
 ## 4. Algoritma Optimasi Pelepasan Beban (UFLS) berbasis SCADA

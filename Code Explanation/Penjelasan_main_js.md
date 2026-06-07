@@ -35,6 +35,7 @@ Ini adalah fitur *frontend* yang paling rumit. File SVG statis diubah menjadi de
 *   **`applyHeatmapToSLD(d, scadaData)`:** Ini adalah fungsi pasca-pemrosesan (*post-processing*). Setelah data Aliran Daya AC diterima, fungsi ini mencari kawat (*Line*), Trafo, atau *Bus* (Terminal) yang kelebihan muatan.
     *   Jika kabel dialiri $> 80\%$, kawat diubah menjadi kuning kemerahan (`#ffca28`).
     *   Jika dialiri $> 100\%$ (Kritis), kawat langsung berubah warna merah darah (`#ff4444`) beserta efek *drop-shadow* (bercahaya) di sekeliling kawatnya.
+    *   **Pengecualian Bus Mati:** Terdapat sinkronisasi brilian antara `scadaData` (Status Generator) dengan fungsi ini. Jika seluruh generator di sebuah bus mati, `main.js` akan menolak menggambar peringatan *Heatmap* (merah) pada bus tersebut dan mempertahankannya berwarna abu-abu gelap, menyempurnakan visualisasi *Blackout*.
 
 ## Blok 7: Sistem Pengiriman Data ke Backend
 Meskipun tidak ditampilkan penuh di potongan atas, terdapat fungsi-fungsi seperti `toggleGen(name, action)` atau `sendSinglePriority(id, value)` (terletak di bagian bawah file).
