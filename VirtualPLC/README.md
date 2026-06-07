@@ -19,6 +19,7 @@ Integrasi antara mesin fisika (`load.py`), SCADA (`app.py`), dan Virtual PLC ber
 ### 2.1. Memori Sensor & Aktuator Utama
 *   **%MW0 – %MW11:** Nilai Daya Beban Aktual (MW) untuk setiap titik L101 hingga L405. Ditulis oleh *Physics Engine* secara kontinyu.
 *   **%MW30 – %MW33:** Nilai Daya Pembangkitan (MW) untuk setiap Generator (PLTA, PLTS, PLTGU, PLTB). Ditulis oleh *Physics Engine*.
+*(Catatan: Presisi register inilah yang memampukan "Instantaneous AGC" berjalan mulus. Pergerakan daya yang nyaris tanpa latensi antar skrip Python dimungkinkan karena mereka semua membaca dan menulis di blok memori PLC yang sama).*
 
 ### 2.2. Memori Kontrol SCADA (Coil & Relay Status)
 Untuk melakukan pemutusan beban (*Under-Frequency Load Shedding*), SCADA menembakkan sinyal biner (1/0) ke *Internal Memory bits* (kontak) PLC:

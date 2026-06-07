@@ -33,7 +33,8 @@ Membaca Coil dari PLC untuk mengecek apakah `app.py` atau HMI baru saja menekan 
 *   **Baris 185-186:** Mengecek apakah ada perintah "Override/Paksa" dari HMI. Jika Anda menggeser *slider* nilai beban di web, HMI akan menaruh angkanya di laci Modbus `ADDR_OVERRIDE`. 
 *   **Baris 199-221:** Proses pengisian nilai beban. 
     *   Jika statusnya `Tripped` (kena pemutusan MILP), maka bebannya langsung **$0$ MW**.
-    *   Jika tidak trip, ia menggunakan pola WBP tadi. Agar grafiknya di HMI tidak mulus seperti robot (melainkan bergerigi seperti listrik asli), ditambahkanlah fungsi `noise` (*random.uniform*).
+    *   Jika tidak trip, ia menggunakan pola WBP tadi. Agar grafiknya di HMI tidak mulus seperti robot (melainkan bergerigi seperti listrik asli), ditambahkanlah fungsi *Independent Random Walk noise* (`+= random.uniform`) untuk mensimulasikan gelombang tarikan acak yang independen untuk tiap beban, tanpa membuatnya melompat-lompat tajam layaknya *noise* statis.
+    *   **Fitur Soft-Start:** Jika beban baru saja dihidupkan (restorasi), dayanya tidak akan langsung seketika 100%. Mesin fisika mensimulasikannya merayap naik perlahan (Soft-Start) dengan limit laju 1% per siklus (atau setara 10% kapasitas maksimal per detik). Ini merepresentasikan masuknya kawasan permukiman secara bertahap sekaligus mengamankan perhitungan matematis di dalam simulasi.
 *   **Baris 223:** Menulis hasil akhir beban ini ke sensor PLC `ADDR_LOADS` agar HMI bisa membacanya.
 
 ### Fase 3: Fisika Generator (Baris 230 - 274)
@@ -44,9 +45,9 @@ Sistem ini menggunakan kecerdasan pembagian beban (seolah-olah ada AGC / *Automa
 
 ### Fase 4: Bencana Frekuensi / *Swing Equation* (Baris 276 - 320)
 Ini adalah baris paling fundamental yang membedakan proyek Anda dengan simulasi anak sekolah.
-*   **Baris 279 (`delta_p_pu`):** Menghitung Defisit Daya.
-*   **Baris 281-282 (`h_eff`):** Menghitung Inersia Total. Jika PLTA (Inersia Berat) mati karena kontingensi, $h_{eff}$ akan anjlok seketika!
-*   **Baris 293-294 (`dfdt`):** **The Swing Equation**. Rumusnya: $\frac{df}{dt} = \frac{f_{nom}}{2H} (\Delta P - D)$. Menghitung perlambatan (RoCoF / *Rate of Change of Frequency*) dengan unit Hz/detik.
+*   **Baris 279-281 (`delta_p_pu`):** Menghitung Defisit Daya. **Sangat Penting:** Rumus ini menggunakan `total_load_with_noise` (beban yang bergetar), bukan `total_load` (beban statis yang dikejar oleh AGC). Hal ini memastikan jarum frekuensi Anda ikut "bergoyang" (swing) secara natural di sekitar 50 Hz mengikuti getaran acak masyarakat, membuatnya 100% realistis!
+*   **Baris 283-285 (`h_eff`):** Menghitung Inersia Total. Jika PLTA (Inersia Berat) mati karena kontingensi, $h_{eff}$ akan anjlok seketika!
+*   **Baris 293-296 (`dfdt`):** **The Swing Equation**. Rumusnya: $\frac{df}{dt} = \frac{f_{nom}}{2H} (\Delta P - D)$. Menghitung perlambatan (RoCoF / *Rate of Change of Frequency*) dengan unit Hz/detik.
 *   **Baris 298:** Menghitung Frekuensi Baru. $\rightarrow$ `Freq = Freq Lama + (RoCoF * DT)`.
 *   **Baris 310-320 (*Blackout*):** Jika semua generator mati, frekuensi meluruh secara eksponensial (kincir turbin berputar semakin pelan karena gesekan hingga berhenti total di 0 Hz).
 

@@ -15,7 +15,7 @@ import os
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-PLC_IP = os.getenv('PLC_IP', '192.168.1.13')
+PLC_IP = os.getenv('PLC_IP', '192.168.100.195')
 PORT   = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(PLC_IP, port=PORT)
 
@@ -174,7 +174,7 @@ def background_monitoring():
                     address=ADDR_SENSOR_GEN, count=4)
             if not gen_reg.isError():
                 for i, name in enumerate(GEN_ORDER):
-                    gen_mw[name] = int(gen_reg.registers[i])
+                    gen_mw[name] = gen_reg.registers[i] / 10.0
             else:
                 for name in GEN_ORDER:
                     gen_mw[name] = 0
@@ -202,7 +202,7 @@ def background_monitoring():
                 freq_reg = client.read_holding_registers(address=ADDR_FREQ, count=1)
             if not freq_reg.isError():
                 freq_hz = freq_reg.registers[0] / 100.0
-
+            
             # ── 3. Baca beban dari %MW0–%MW11
             global last_live_loads, load_memory
             live_loads = []
@@ -213,8 +213,8 @@ def background_monitoring():
             if not reg_result.isError():
                 sensor_mw = reg_result.registers
                 for i, load in enumerate(LOADS):
-                    actual_mw = int(sensor_mw[i])
-                    if actual_mw > 0:
+                    actual_mw = sensor_mw[i] / 10.0
+                    if actual_mw > 0.0:
                         load_memory[load['name']] = actual_mw
                     potential_mw = load_memory.get(load['name'], actual_mw)
                     live_loads.append({**load, 'mw': potential_mw,
@@ -457,7 +457,7 @@ def handle_set_load_interrupt(data):
     """
     try:
         vals = data.get('loads', [0] * 12)
-        vals = [max(0, min(32767, int(v))) for v in vals]
+        vals = [max(0, min(32767, int(round(float(v) * 10)))) for v in vals]
         if len(vals) != 12:
             print("[OVERRIDE BEBAN] Data tidak valid — harus 12 nilai.")
             return
@@ -472,7 +472,7 @@ def handle_set_load_interrupt(data):
                     client.write_register(address=ADDR_SENSOR_LOAD + i, value=v)
 
         # Log ke terminal
-        override_info = {f'%MW{40+i}={v}' for i, v in enumerate(vals) if v > 0}
+        override_info = {f'%MW{40+i}={v/10.0}' for i, v in enumerate(vals) if v > 0}
         auto_info     = {f'%MW{40+i}=AUTO' for i, v in enumerate(vals) if v == 0}
         print(f"[OVERRIDE BEBAN] Config: {override_info}")
         if auto_info:
