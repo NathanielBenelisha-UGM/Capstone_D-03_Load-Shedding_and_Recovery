@@ -1,16 +1,16 @@
-from flask import Flask, render_template, request, send_from_directory
+from flask import Flask, render_template, request, send_from_directory, jsonify
 from flask_socketio import SocketIO
 from pymodbus.client import ModbusTcpClient
 import threading
 import time
 import pulp
-from loadflow_module import run_live_loadflow
+import os
+import logging
+from loadflow_module import solve_milp_shedding, run_live_loadflow, verify_ac_post_shedding, solve_socp_fallback, create_network
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
-
-import os
 
 # =========================================================
 # KONFIGURASI PLC
@@ -78,7 +78,7 @@ load_memory     = {}
 # =========================================================
 # MILP LOAD SHEDDING SOLVER
 # =========================================================
-def solve_milp_shedding(deficit, live_loads, current_tripped=set(), freq_hz=None):
+def solve_milp_shedding(deficit, live_loads, current_tripped=set(), freq_hz=None, must_shed_loads=None):
     import pulp
     import time
     start_time = time.perf_counter()
@@ -100,6 +100,10 @@ def solve_milp_shedding(deficit, live_loads, current_tripped=set(), freq_hz=None
         
         if l['name'] in current_tripped:
             weight = weight * 0.90 
+            
+        if must_shed_loads and l['name'] in must_shed_loads:
+            weight = weight * 0.1 
+            prob += shed_vars[l['name']] >= 1 
             
         objective.append(weight * shed_vars[l['name']])
         
@@ -262,14 +266,37 @@ def background_monitoring():
                     shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
                     log_msg = f"DEFISIT TERTANGANI. Mempertahankan {len(shed_set)} beban mati ({shed_mw:.0f}MW)."
                 else:
-                    # Perlu run MILP karena defisit bertambah atau frekuensi kritis
-                    shed_set, milp_status = solve_milp_shedding(calc_deficit, live_loads, current_tripped, freq_hz=freq_hz)
+                    shed_set, milp_status = solve_milp_shedding(calc_deficit, live_loads, current_tripped)
                     if milp_status != 'Optimal':
                         shed_set = {load['name'] for load in live_loads}
+                        log_msg_extra = ""
+                    else:
+                        # 2. Augmentasi-2: Post-hoc AC Verifikasi
+                        is_valid, viol_buses = verify_ac_post_shedding(gen_statuses, live_loads, shed_set)
+                        log_msg_extra = ""
+                        if not is_valid:
+                            if len(viol_buses) <= 2 and "ALL_BUSES" not in viol_buses:
+                                # Dapatkan daftar beban di bus yang melanggar
+                                net, l_defs = create_network()
+                                viol_loads = []
+                                for ld in l_defs:
+                                    b_name = net.bus.name.loc[ld['bus']]
+                                    if b_name in viol_buses:
+                                        viol_loads.append(ld['name'])
+                                
+                                # Re-run MILP dengan Sensitivitas
+                                shed_set, _ = solve_milp_shedding(calc_deficit, live_loads, current_tripped, must_shed_loads=viol_loads)
+                                log_msg_extra = " [Augmentasi-2: Re-run MILP]"
+                            else:
+                                # SOCP Fallback
+                                shed_set_socp, socp_status = solve_socp_fallback(gen_statuses, live_loads, current_tripped)
+                                if socp_status in ["optimal", "optimal_inaccurate"]:
+                                    shed_set = shed_set_socp
+                                log_msg_extra = " [Augmentasi-2: Fallback SOCP]"
                         
                     shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
                     log_msg = (f"UFLS TRIGGERED! Melepas {len(shed_set)} beban "
-                               f"({shed_mw:.0f}MW): {', '.join(sorted(shed_set))}")
+                               f"({shed_mw:.0f}MW): {', '.join(sorted(shed_set))}{log_msg_extra}")
 
             elif capacity_deficit > 0:
                 # Kondisi Defisit Stabil (Frekuensi normal, tapi kapasitas masih kurang)
@@ -278,10 +305,31 @@ def background_monitoring():
                 new_shed_set, milp_status = solve_milp_shedding(calc_deficit, live_loads, current_tripped)
                 
                 if new_shed_set != current_tripped and milp_status == 'Optimal':
-                    # Ternyata MILP menemukan solusi yang lebih baik (user mengganti prioritas load yang trip menjadi penting)
-                    shed_set = new_shed_set
-                    shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
-                    log_msg = f"RE-PRIORITIZED! Menukar beban mati untuk mengamankan VIP ({shed_mw:.0f}MW)."
+                    # 2. Augmentasi-2: Post-hoc AC Verifikasi sebelum menukar
+                    is_valid, viol_buses = verify_ac_post_shedding(gen_statuses, live_loads, new_shed_set)
+                    log_msg_extra = ""
+                    if not is_valid:
+                        if len(viol_buses) <= 2 and "ALL_BUSES" not in viol_buses:
+                            net, l_defs = create_network()
+                            viol_loads = []
+                            for ld in l_defs:
+                                b_name = net.bus.name.loc[ld['bus']]
+                                if b_name in viol_buses:
+                                    viol_loads.append(ld['name'])
+                            new_shed_set, _ = solve_milp_shedding(calc_deficit, live_loads, current_tripped, must_shed_loads=viol_loads)
+                            log_msg_extra = " [Augmentasi-2: Re-run MILP]"
+                        else:
+                            new_shed_set_socp, socp_status = solve_socp_fallback(gen_statuses, live_loads, current_tripped)
+                            if socp_status in ["optimal", "optimal_inaccurate"]:
+                                new_shed_set = new_shed_set_socp
+                            log_msg_extra = " [Augmentasi-2: Fallback SOCP]"
+
+                    if new_shed_set != current_tripped:
+                        shed_set = new_shed_set
+                        shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
+                        log_msg = f"RE-PRIORITIZED! Menukar beban mati untuk mengamankan VIP ({shed_mw:.0f}MW).{log_msg_extra}"
+                    else:
+                        shed_set = current_tripped.copy()
                 else:
                     # Tidak ada perubahan prioritas, pertahankan yang mati
                     shed_set = current_tripped.copy()
@@ -305,23 +353,34 @@ def background_monitoring():
                                 
                     if 49.95 <= freq_hz <= 52.25 and is_settled:
                         app.restore_timer += 1
-                        if app.restore_timer >= 10: # Tunggu 10 siklus (1 detik) agar benar-benar stabil
+                        if app.restore_timer >= 20: # Tunggu 20 siklus (2 detik) agar governor generator benar-benar tuntas mengejar beban sebelumnya
                             # Hitung reserve berdasarkan beban yang PASTI akan ditarik setelah soft-start selesai
                             expected_on_demand = sum(l['mw'] for l in live_loads if l['name'] not in shed_set)
                             
-                            # SCADA Cerdas: Gunakan kapasitas efektif (Aktual + Margin 20 MW per Gen)
-                            effective_capacity = sum(min(g['mw'] + 20, g['rated']) for g in gen_statuses if g['status'] == 'ONLINE')
+                            # SCADA Cerdas (Konservatif): Gunakan kapasitas efektif (Aktual + Margin aman 10 MW per Gen)
+                            # Margin diturunkan dari 20 ke 10 agar SCADA tidak terlalu serakah menyalakan beban besar
+                            effective_capacity = sum(min(g['mw'] + 10, g['rated']) for g in gen_statuses if g['status'] == 'ONLINE')
                             true_reserve = effective_capacity - expected_on_demand
                             
                             for load in live_loads:
                                 if load['name'] in shed_set:
                                     if load['max_mw'] <= true_reserve:
-                                        shed_set.remove(load['name'])
-                                        log_msg = f"RESTORASI: Menyalakan kembali {load['name']} (Maks {load['max_mw']} MW)"
-                                        app.restore_timer = 0
-                                        break # Hanya 1 per siklus
+                                        # Simulasikan jika beban ini dinyalakan kembali
+                                        proposed_shed_set = shed_set.copy()
+                                        proposed_shed_set.remove(load['name'])
+                                        
+                                        # Augmentasi-2 Restorasi: Verifikasi Tegangan AC (Syarat Proposal C251)
+                                        is_valid, _ = verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed_set)
+                                        
+                                        if is_valid:
+                                            shed_set = proposed_shed_set
+                                            log_msg = f"RESTORASI: Menyalakan {load['name']} (Lolos Cek Tegangan)"
+                                            app.restore_timer = 0
+                                            break # Hanya 1 per siklus
+                                        else:
+                                            log_msg = f"RESTORASI TERTUNDA: {load['name']} memicu Undervoltage."
                         else:
-                            log_msg = f"Menunggu stabilitas sistem... ({app.restore_timer}/10)"
+                            log_msg = f"Menunggu stabilitas sistem... ({app.restore_timer}/20)"
                     else:
                         app.restore_timer = 0
                         if not is_settled:

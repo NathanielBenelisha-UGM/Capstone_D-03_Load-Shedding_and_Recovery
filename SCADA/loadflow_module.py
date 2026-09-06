@@ -2,8 +2,10 @@ import pandapower as pp
 import pulp
 import pandas as pd
 import os
+import cvxpy as cp
+import numpy as np
 
-def solve_milp_shedding(deficit, live_loads, current_tripped=set()):
+def solve_milp_shedding(deficit, live_loads, current_tripped=set(), must_shed_loads=None):
     prob = pulp.LpProblem("LoadShedding", pulp.LpMinimize)
     shed_vars = {}
     for l in live_loads:
@@ -17,6 +19,12 @@ def solve_milp_shedding(deficit, live_loads, current_tripped=set()):
         weight = MILP_PRIORITY_WEIGHTS.get(l.get('priority', 2), 1)
         if l['name'] in current_tripped:
             weight = weight * 0.90
+            
+        # Penalti tambahan untuk Augmentasi-2
+        if must_shed_loads and l['name'] in must_shed_loads:
+            weight = weight * 0.1 # Prioritaskan diputus (biaya sangat murah)
+            prob += shed_vars[l['name']] >= 1 # Memaksa diputus jika memungkinkan
+            
         objective.append(weight * shed_vars[l['name']])
         
     prob += pulp.lpSum(objective)
@@ -60,8 +68,8 @@ def create_network():
     pp.create_transformer_from_parameters(net, hv_bus=b_150_2, lv_bus=b_66_2, sn_mva=125., vn_hv_kv=150., vn_lv_kv=66., vkr_percent=0.3, vk_percent=10., pfe_kw=50., i0_percent=0.1, name="Trafo 2")
     pp.create_transformer_from_parameters(net, hv_bus=b_150_4, lv_bus=b_20_1, sn_mva=100., vn_hv_kv=150., vn_lv_kv=20., vkr_percent=0.3, vk_percent=10., pfe_kw=50., i0_percent=0.1, name="Trafo 3")
 
-    # Lines (max_i_ka diturunkan lagi ke 0.2 kA / ~52 MVA agar lebih mudah mencapai >80% loading)
-    line_length = 20.0 
+    # Lines (panjang kabel diperbesar agar voltage drop lebih mudah terjadi)
+    line_length = 60.0
     pp.create_line_from_parameters(net, b_150_1, b_150_2, length_km=line_length, r_ohm_per_km=0.1, x_ohm_per_km=0.4, c_nf_per_km=10., max_i_ka=0.2, name="Line_1")
     pp.create_line_from_parameters(net, b_150_1, b_150_3, length_km=line_length, r_ohm_per_km=0.1, x_ohm_per_km=0.4, c_nf_per_km=10., max_i_ka=0.3, name="Line_1-1")
     pp.create_line_from_parameters(net, b_150_2, b_150_4, length_km=line_length, r_ohm_per_km=0.1, x_ohm_per_km=0.4, c_nf_per_km=10., max_i_ka=0.3, name="Line_1-2")
@@ -188,19 +196,10 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads):
             net.sgen.loc[idx_sgen[0], 'in_service'] = is_on
             net.sgen.loc[idx_sgen[0], 'p_mw'] = g['mw'] if g['mw'] > 0 else 0.1
 
-    # Breaker Intertrip Logic (Putus Trafo jika bus generator mati total)
-    bus1_active = any(g['status'] == 'ONLINE' for g in gen_statuses if g['name'] in ['PLTA', 'PLTS'])
-    bus2_active = any(g['status'] == 'ONLINE' for g in gen_statuses if g['name'] in ['PLTGU', 'PLTB'])
-    
-    if not bus1_active:
-        idx_t1 = net.trafo[net.trafo.name == "Trafo 1"].index
-        if len(idx_t1) > 0:
-            net.trafo.loc[idx_t1[0], 'in_service'] = False
-            
-    if not bus2_active:
-        idx_t2 = net.trafo[net.trafo.name == "Trafo 2"].index
-        if len(idx_t2) > 0:
-            net.trafo.loc[idx_t2[0], 'in_service'] = False
+    # Breaker Intertrip Logic dihapus: 
+    # Jangan matikan Trafo meskipun bus generator mati total, karena pandapower 
+    # akan menganggap bus 66kV menjadi 'island' terisolasi tanpa slack bus dan CRASH.
+    # Membiarkan trafo menyala secara matematis aman (hanya akan menarik no-load loss).
 
     # Update Loads
     for l in live_loads:
@@ -230,6 +229,9 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads):
                 sgen_name = net.sgen.loc[sgen_idx, 'name']
                 net.sgen.loc[sgen_idx, 'in_service'] = False
                 pp.create_ext_grid(net, bus=bus_idx, vm_pu=1.0, name=f"Slack ({sgen_name})")
+            else:
+                # TOTAL BLACKOUT (Semua generator mati)
+                return {'status': 'error', 'message': 'TOTAL BLACKOUT - Tidak ada generator aktif'}
 
     # Run Power Flow
     try:
@@ -244,3 +246,148 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads):
         res = {'status': 'error', 'message': 'Loadflow Not Converged (Blackout / Extreme Deficit)'}
         
     return res
+
+def verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed_set):
+    """
+    Menjalankan simulasi AC Load Flow untuk memverifikasi tegangan
+    setelah MILP mengusulkan pemutusan beban.
+    Returns: (is_valid, list_of_violating_bus_names)
+    """
+    res = run_live_loadflow(gen_statuses, live_loads, proposed_shed_set)
+    if res.get('status') == 'error':
+        return False, ["ALL_BUSES"] # Gagal konvergen
+        
+    buses = res['buses']
+    violating_buses = []
+    for b in buses:
+        # Batas tegangan kritis diperketat: 0.95 pu - 1.05 pu
+        if b['vm_pu'] < 0.95 or b['vm_pu'] > 1.05:
+            violating_buses.append(b['index'])
+            
+    return len(violating_buses) == 0, violating_buses
+
+def solve_socp_fallback(gen_statuses, live_loads, current_tripped=set()):
+    """
+    Matematika murni SOCP (Second-Order Cone Programming)
+    Menggunakan Branch Flow Model (DistFlow Relaxation) via CVXPY.
+    """
+    net, _ = create_network()
+    
+    # 1. Update In-Service Status di Network
+    for g in gen_statuses:
+        pp_name = None
+        if g['name'] == 'PLTA': pp_name = 'Slack (GEN_1A PLTA)'
+        elif g['name'] == 'PLTS': pp_name = 'GEN_1B PLTS'
+        elif g['name'] == 'PLTGU': pp_name = 'GEN_2A PLTGU'
+        elif g['name'] == 'PLTB': pp_name = 'GEN_2B PLTB'
+        if not pp_name: continue
+        is_on = g['status'] == 'ONLINE'
+        
+        idx_ext = net.ext_grid[net.ext_grid.name == pp_name].index
+        if len(idx_ext) > 0: net.ext_grid.loc[idx_ext[0], 'in_service'] = is_on
+        idx_gen = net.gen[net.gen.name == pp_name].index
+        if len(idx_gen) > 0: 
+            net.gen.loc[idx_gen[0], 'in_service'] = is_on
+            net.gen.loc[idx_gen[0], 'p_mw'] = g['mw']
+        idx_sgen = net.sgen[net.sgen.name == pp_name].index
+        if len(idx_sgen) > 0: 
+            net.sgen.loc[idx_sgen[0], 'in_service'] = is_on
+            net.sgen.loc[idx_sgen[0], 'p_mw'] = g['mw']
+            
+    # 2. Extract Data untuk SOCP
+    buses = net.bus.index.tolist()
+    n_bus = len(buses)
+    bus_map = {b: i for i, b in enumerate(buses)}
+    
+    branches = []
+    for _, row in net.line.iterrows():
+        zb = (net.bus.vn_kv.loc[row.from_bus] ** 2) / 100.0
+        branches.append({'from': bus_map[row.from_bus], 'to': bus_map[row.to_bus], 
+                         'r': (row.length_km * row.r_ohm_per_km)/zb, 'x': (row.length_km * row.x_ohm_per_km)/zb})
+    for _, row in net.trafo.iterrows():
+        # simplified trafo impedance
+        branches.append({'from': bus_map[row.hv_bus], 'to': bus_map[row.lv_bus], 'r': 0.01, 'x': 0.05})
+        
+    n_branch = len(branches)
+    
+    # 3. Define Variables
+    v_sq = cp.Variable(n_bus)
+    P_ij = cp.Variable(n_branch)
+    Q_ij = cp.Variable(n_branch)
+    l_ij = cp.Variable(n_branch)
+    P_shed = cp.Variable(len(live_loads))
+    
+    # Ensure at least one slack bus is active for OPF balance
+    slack_idx = None
+    if net.ext_grid[net.ext_grid.in_service == True].empty:
+        active_gens = net.gen[net.gen.in_service == True]
+        if not active_gens.empty:
+            slack_idx = bus_map[active_gens.bus.values[0]]
+        else:
+            active_sgens = net.sgen[net.sgen.in_service == True]
+            if not active_sgens.empty:
+                slack_idx = bus_map[active_sgens.bus.values[0]]
+    if slack_idx is None:
+        slack_idx = bus_map[net.ext_grid.bus.values[0]] # fallback default
+
+    # 4. Constraints
+    constraints = [v_sq >= 0.9025, v_sq <= 1.1025] # 0.95^2 to 1.05^2
+    constraints.append(v_sq[slack_idx] == 1.0)
+    
+    for k, br in enumerate(branches):
+        i, j = br['from'], br['to']
+        # Cone constraint: P^2 + Q^2 <= l_ij * v_i
+        constraints.append(cp.quad_over_lin(cp.vstack([P_ij[k], Q_ij[k]]), v_sq[i]) <= l_ij[k])
+        # Voltage drop
+        constraints.append(v_sq[j] == v_sq[i] - 2*(br['r']*P_ij[k] + br['x']*Q_ij[k]) + (br['r']**2 + br['x']**2)*l_ij[k])
+        
+    for i in range(n_bus):
+        P_g = cp.Variable() if i == slack_idx else 0
+        Q_g = cp.Variable() if i == slack_idx else 0
+        if i == slack_idx:
+            constraints.extend([P_g >= 0, P_g <= 0.75, Q_g >= -0.5, Q_g <= 0.5])
+            
+        for _, row in net.gen.iterrows():
+            if bus_map[row.bus] == i and row.in_service and i != slack_idx: 
+                P_g += row.p_mw / 100.0
+        for _, row in net.sgen.iterrows():
+            if bus_map[row.bus] == i and row.in_service and i != slack_idx: 
+                P_g += row.p_mw / 100.0
+            
+        P_l, Q_l = 0, 0
+        for k_load, l_dict in enumerate(live_loads):
+            load_row = net.load[net.load.name == l_dict['name']]
+            if not load_row.empty and bus_map[load_row.bus.values[0]] == i:
+                load_mw_pu = l_dict['mw'] / 100.0
+                constraints.extend([P_shed[k_load] >= 0, P_shed[k_load] <= load_mw_pu])
+                P_l += (load_mw_pu - P_shed[k_load])
+                Q_l += (load_mw_pu - P_shed[k_load]) * 0.2
+                
+        out_P = sum(P_ij[k] for k, br in enumerate(branches) if br['from'] == i)
+        out_Q = sum(Q_ij[k] for k, br in enumerate(branches) if br['from'] == i)
+        in_P = sum(P_ij[k] - br['r']*l_ij[k] for k, br in enumerate(branches) if br['to'] == i)
+        in_Q = sum(Q_ij[k] - br['x']*l_ij[k] for k, br in enumerate(branches) if br['to'] == i)
+        
+        constraints.extend([P_g - P_l == out_P - in_P, Q_g - Q_l == out_Q - in_Q])
+        
+    # 5. Objective
+    obj = 0
+    weights = {2: 1, 3: 10, 4: 100}
+    for k, l_dict in enumerate(live_loads):
+        obj += weights.get(l_dict.get('priority', 2), 1) * P_shed[k]
+        
+    prob = cp.Problem(cp.Minimize(obj), constraints)
+    try:
+        prob.solve(solver=cp.ECOS, verbose=False)
+    except:
+        pass
+        
+    shed_set = set()
+    if prob.status in ["optimal", "optimal_inaccurate"]:
+        for k, l_dict in enumerate(live_loads):
+            val = P_shed[k].value
+            if val is not None and (val * 100.0) > (l_dict['mw'] * 0.5): # Thresholding kontinyu -> diskrit
+                shed_set.add(l_dict['name'])
+                
+    return shed_set, prob.status
+
