@@ -159,12 +159,13 @@ def get_results_dict(net):
         'max_v': float(max_v)
     }
 
-def run_live_loadflow(gen_statuses, live_loads, tripped_loads):
+def run_live_loadflow(gen_statuses, live_loads, tripped_loads, line_statuses=None):
     """
     Menjalankan pandapower berdasarkan status aktual SCADA
     gen_statuses: list of dict {'name': 'PLTA', 'status': 'ONLINE', 'mw': ...}
     live_loads: list of dict {'name': 'L101', 'mw': ...}
     tripped_loads: set/list of string load names yang mati
+    line_statuses: dict {'Line_1': 'ONLINE', ...}
     """
     net, load_defs = create_network()
     
@@ -212,6 +213,13 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads):
             current_p = l.get('actual_mw', l['mw'])
             net.load.loc[idx_load[0], 'p_mw'] = current_p if current_p > 0 else 0.1
 
+    # Update Transmission Lines (Feeder Contingencies)
+    if line_statuses:
+        for l_name, status in line_statuses.items():
+            idx_line = net.line[net.line.name == l_name].index
+            if len(idx_line) > 0:
+                net.line.loc[idx_line[0], 'in_service'] = (status == 'ONLINE')
+
     # Ensure at least one slack bus is active (prevent 'No reference bus' error)
     if net.ext_grid[net.ext_grid.in_service == True].empty:
         active_gens = net.gen[net.gen.in_service == True]
@@ -246,32 +254,42 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads):
         res = {'status': 'error', 'message': 'Loadflow Not Converged (Blackout / Extreme Deficit)'}
         
     return res
-
-def verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed_set):
+def verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed_set, line_statuses=None):
     """
     Menjalankan simulasi AC Load Flow untuk memverifikasi tegangan
     setelah MILP mengusulkan pemutusan beban.
     Returns: (is_valid, list_of_violating_bus_names)
     """
-    res = run_live_loadflow(gen_statuses, live_loads, proposed_shed_set)
+    # Run AC Load Flow simulasi dengan `proposed_shed_set` dan `line_statuses`
+    res = run_live_loadflow(gen_statuses, live_loads, proposed_shed_set, line_statuses)
     if res.get('status') == 'error':
         return False, ["ALL_BUSES"] # Gagal konvergen
         
+    import pandas as pd
     buses = res['buses']
     violating_buses = []
-    for b in buses:
-        # Batas tegangan kritis diperketat: 0.95 pu - 1.05 pu
-        if b['vm_pu'] < 0.95 or b['vm_pu'] > 1.05:
-            violating_buses.append(b['index'])
+    for i, b in enumerate(buses):
+        val = b.get('vm_pu')
+        # Batas tegangan kritis diperketat: 0.95 pu - 1.05 pu, NaN berarti bus terisolir (Blackout)
+        if pd.isna(val) or val is None or val < 0.95 or val > 1.05:
+            # Cari nama index atau gunakan fallback enumerasi berurut
+            bus_idx = b.get('index', b.get('bus_id', b.get('level_0', i)))
+            violating_buses.append(bus_idx)
             
     return len(violating_buses) == 0, violating_buses
 
-def solve_socp_fallback(gen_statuses, live_loads, current_tripped=set()):
+def solve_socp_fallback(gen_statuses, live_loads, current_tripped=set(), line_statuses=None):
     """
     Matematika murni SOCP (Second-Order Cone Programming)
     Menggunakan Branch Flow Model (DistFlow Relaxation) via CVXPY.
     """
+    # Create net with line contingencies applied
     net, _ = create_network()
+    if line_statuses:
+        for l_name, status in line_statuses.items():
+            idx_line = net.line[net.line.name == l_name].index
+            if len(idx_line) > 0:
+                net.line.loc[idx_line[0], 'in_service'] = (status == 'ONLINE')
     
     # 1. Update In-Service Status di Network
     for g in gen_statuses:
@@ -301,6 +319,7 @@ def solve_socp_fallback(gen_statuses, live_loads, current_tripped=set()):
     
     branches = []
     for _, row in net.line.iterrows():
+        if not row.in_service: continue
         zb = (net.bus.vn_kv.loc[row.from_bus] ** 2) / 100.0
         branches.append({'from': bus_map[row.from_bus], 'to': bus_map[row.to_bus], 
                          'r': (row.length_km * row.r_ohm_per_km)/zb, 'x': (row.length_km * row.x_ohm_per_km)/zb})
@@ -342,17 +361,29 @@ def solve_socp_fallback(gen_statuses, live_loads, current_tripped=set()):
         constraints.append(v_sq[j] == v_sq[i] - 2*(br['r']*P_ij[k] + br['x']*Q_ij[k]) + (br['r']**2 + br['x']**2)*l_ij[k])
         
     for i in range(n_bus):
-        P_g = cp.Variable() if i == slack_idx else 0
-        Q_g = cp.Variable() if i == slack_idx else 0
+        P_g = 0
+        Q_g = 0
+        
         if i == slack_idx:
-            constraints.extend([P_g >= 0, P_g <= 0.75, Q_g >= -0.5, Q_g <= 0.5])
+            p_var = cp.Variable()
+            q_var = cp.Variable()
+            constraints.extend([p_var >= 0, p_var <= 0.75, q_var >= -0.5, q_var <= 0.5])
+            P_g += p_var
+            Q_g += q_var
             
         for _, row in net.gen.iterrows():
             if bus_map[row.bus] == i and row.in_service and i != slack_idx: 
-                P_g += row.p_mw / 100.0
+                p_var = cp.Variable()
+                q_var = cp.Variable()
+                # Allow generator to curtail output if island is over-generated
+                constraints.extend([p_var >= 0, p_var <= row.p_mw / 100.0, q_var >= -0.5, q_var <= 0.5])
+                P_g += p_var
+                Q_g += q_var
         for _, row in net.sgen.iterrows():
             if bus_map[row.bus] == i and row.in_service and i != slack_idx: 
-                P_g += row.p_mw / 100.0
+                p_var = cp.Variable()
+                constraints.extend([p_var >= 0, p_var <= row.p_mw / 100.0])
+                P_g += p_var
             
         P_l, Q_l = 0, 0
         for k_load, l_dict in enumerate(live_loads):
@@ -378,9 +409,9 @@ def solve_socp_fallback(gen_statuses, live_loads, current_tripped=set()):
         
     prob = cp.Problem(cp.Minimize(obj), constraints)
     try:
-        prob.solve(solver=cp.ECOS, verbose=False)
-    except:
-        pass
+        prob.solve(verbose=False)
+    except Exception as e:
+        print("SOCP SOLVE EXCEPTION:", e)
         
     shed_set = set()
     if prob.status in ["optimal", "optimal_inaccurate"]:

@@ -319,6 +319,24 @@
                         </tbody>
                     </table>
                 </div>
+
+                <h2 style="margin-top:24px">Feeder Contingency (Transmission Lines)</h2>
+                <div class="glass-panel warning">
+                    <p style="color:var(--text-muted); font-size: 0.85rem; margin-top:0; margin-bottom: 12px;">Putuskan koneksi saluran transmisi untuk menguji ketahanan AC Load Flow (Augmentasi-2 / SOCP) terhadap <span style="color:var(--warning-yellow)">Voltage Drop</span> dan <span style="color:var(--warning-yellow)">Thermal Overload</span>.</p>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Transmission Line</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th class="admin-only" style="display: none;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="line-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- 4. CONTINGENCY MATRIX -->
