@@ -437,14 +437,20 @@
                         </div>
                     </div>
                     
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
                         <div class="metric-card glass-panel" style="margin:0;">
                             <div class="metric-label">Grid Status</div>
                             <div class="metric-value" id="lf-status-text" style="font-size: 1.2rem; color: #00ffaa;">STABLE</div>
                         </div>
                         <div class="metric-card glass-panel" style="margin:0;">
-                            <div class="metric-label">Max Trafo / Line Loading</div>
-                            <div class="metric-value" id="lf-max-loading" style="font-size: 1.8rem;">0<span style="font-size: 1rem;">%</span></div>
+                            <div class="metric-label">Max Trafo Loading</div>
+                            <div class="metric-value" id="lf-max-trafo-loading" style="font-size: 1.8rem;">0<span style="font-size: 1rem;">%</span></div>
+                            <div class="metric-unit" id="lf-max-trafo-name" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Lokasi: -</div>
+                        </div>
+                        <div class="metric-card glass-panel" style="margin:0;">
+                            <div class="metric-label">Max Line Loading</div>
+                            <div class="metric-value" id="lf-max-line-loading" style="font-size: 1.8rem;">0<span style="font-size: 1rem;">%</span></div>
+                            <div class="metric-unit" id="lf-max-line-name" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Lokasi: -</div>
                         </div>
                         <div class="metric-card glass-panel" style="margin:0;">
                             <div class="metric-label">Lowest Bus Voltage</div>

@@ -6,7 +6,7 @@ import time
 import pulp
 import os
 import logging
-from loadflow_module import solve_milp_shedding, run_live_loadflow, verify_ac_post_shedding, solve_socp_fallback, create_network
+from loadflow_module import solve_milp_shedding, run_live_loadflow, verify_ac_post_shedding, solve_socp_fallback, create_network, solve_feeder_contingency_shedding
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -79,6 +79,21 @@ app.line_statuses = {
     'Line_1-2': 'ONLINE',
     'Line_2': 'ONLINE'
 }
+
+
+# =========================================================
+# PROFIL BEBAN HARIAN (WBP/LWBP)
+# =========================================================
+def get_load_pct(hour):
+    profile = {0: 0.41, 4: 0.32, 6: 0.59, 9: 0.72,
+               12: 0.77, 15: 0.72, 17: 0.81, 19: 0.90,
+               21: 0.77, 23: 0.54, 24: 0.41}
+    hs = sorted(profile.keys())
+    for i in range(len(hs) - 1):
+        if hs[i] <= hour <= hs[i + 1]:
+            h1, h2, p1, p2 = hs[i], hs[i + 1], profile[hs[i]], profile[hs[i + 1]]
+            return p1 if h2 == h1 else p1 + ((hour - h1) / (h2 - h1)) * (p2 - p1)
+    return 0.45
 
 
 # =========================================================
@@ -213,7 +228,27 @@ def background_monitoring():
             if not freq_reg.isError():
                 freq_hz = freq_reg.registers[0] / 100.0
             
-            # ── 3. Baca beban dari %MW0–%MW11
+            # ── 3. Baca jam simulasi %MW20–%MW21
+            sim_hour = 19.0
+            with plc_lock:
+                clock_result = client.read_holding_registers(
+                    address=ADDR_CLOCK, count=2)
+            if not clock_result.isError() and len(clock_result.registers) >= 2:
+                plc_hour = clock_result.registers[0]
+                plc_min  = clock_result.registers[1]
+                plc_time = f"{plc_hour:02d}:{plc_min:02d}"
+                sim_hour = (plc_hour + plc_min / 60.0) % 24
+            else:
+                plc_time = time.strftime('%H:%M')
+
+            load_pct = get_load_pct(sim_hour)
+
+            # Baca override (%MW40–%MW51) jika ada
+            with plc_lock:
+                ov_result = client.read_holding_registers(address=ADDR_OVERRIDE, count=12)
+            override = list(ov_result.registers) if not ov_result.isError() else [0]*12
+
+            # ── 4. Baca beban dari %MW0–%MW11
             global last_live_loads, load_memory
             live_loads = []
             with plc_lock:
@@ -224,27 +259,27 @@ def background_monitoring():
                 sensor_mw = reg_result.registers
                 for i, load in enumerate(LOADS):
                     actual_mw = sensor_mw[i] / 10.0
-                    if actual_mw > 0.0:
+                    
+                    # Target nominal un-shed beban pada jam ini
+                    if override[i] > 0:
+                        nominal_mw = min(override[i] / 10.0, load['max_mw'])
+                    else:
+                        nominal_mw = load['max_mw'] * load_pct
+                    
+                    # Hanya update memory jika beban stabil menyala (bukan sedang soft-start atau tripped)
+                    if actual_mw >= nominal_mw * 0.70:
                         load_memory[load['name']] = actual_mw
-                    potential_mw = load_memory.get(load['name'], actual_mw)
+                    
+                    potential_mw = load_memory.get(load['name'], nominal_mw)
                     live_loads.append({**load, 'mw': potential_mw,
-                                       'actual_mw': actual_mw})
+                                       'actual_mw': actual_mw,
+                                       'nominal_mw': nominal_mw})
                 last_live_loads = live_loads
             elif last_live_loads:
                 live_loads = last_live_loads
             else:
                 time.sleep(2)
                 continue
-
-            # ── 4. Baca jam simulasi %MW20–%MW21
-            with plc_lock:
-                clock_result = client.read_holding_registers(
-                    address=ADDR_CLOCK, count=2)
-            if not clock_result.isError() and len(clock_result.registers) >= 2:
-                plc_time = (f"{clock_result.registers[0]:02d}:"
-                            f"{clock_result.registers[1]:02d}")
-            else:
-                plc_time = time.strftime('%H:%M')
 
             # ── 5. Evaluasi Kapasitas & Load Shedding / Restoration
             potential_total_demand = sum(l['mw'] for l in live_loads)
@@ -259,10 +294,63 @@ def background_monitoring():
             
             shed_set = set()
             log_msg = "Sistem Stabil."
-            
+
+            # Deteksi feeder contingency dari status line saat ini
+            _feeder_offline = any(s == 'OFFLINE' for s in app.line_statuses.values())
+            if not _feeder_offline and getattr(app, 'feeder_contingency', False):
+                # Feeder baru kembali online — reset counter, izinkan restorasi penuh
+                app.feeder_stable_count = 0
+                if not hasattr(app, 'restore_timer'): app.restore_timer = 0
+                app.restore_timer = 0
+                print("[FEEDER RESTORED] Semua feeder kembali — mode normal, restorasi penuh dimulai.")
+            app.feeder_contingency = _feeder_offline
+
+            # Reset OFP cooldown saat frekuensi sudah normal
+            if freq_hz <= 51.5:
+                if not hasattr(app, 'ofp_cooldown'):
+                    app.ofp_cooldown = 0
+                app.ofp_cooldown = 0
+
+            # Over-Frequency Protection: jika frekuensi naik > 51.5 Hz (akibat shedding berlebih),
+            # kembalikan beban yang sudah trip secara darurat untuk menyerap kelebihan generasi.
+            # Catatan: Cek AC dulu sebelum restore — feeder yang masih offline membatasi kapasitas jaringan.
+            # Cooldown antar restore: tunggu beberapa siklus agar frekuensi settle sebelum nyalakan beban berikutnya.
+            if freq_hz > 51.5 and len(current_tripped) > 0:
+                if not hasattr(app, 'ofp_cooldown'):
+                    app.ofp_cooldown = 0
+
+                if app.feeder_contingency:
+                    # Feeder offline — jangan restore via OFP, biarkan droop generator atasi over-freq secara alami
+                    shed_set = current_tripped.copy()
+                    log_msg = f"OFP DITAHAN (feeder offline): {freq_hz:.2f}Hz, tunggu droop generator."
+                elif app.ofp_cooldown > 0:
+                    app.ofp_cooldown -= 1
+                    shed_set = current_tripped.copy()
+                    log_msg = f"OFP: Frekuensi {freq_hz:.2f}Hz tinggi, tunggu settle ({app.ofp_cooldown} siklus lagi)..."
+                else:
+                    ofp_restored = False
+                    for load in sorted(live_loads, key=lambda x: x['priority']):
+                        if load['name'] in current_tripped and load['priority'] == 2:
+                            proposed_shed = current_tripped.copy()
+                            proposed_shed.discard(load['name'])
+                            # Verifikasi AC: pastikan restore ini tidak memicu overload line/trafo
+                            is_valid_ofp, _ = verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed, app.line_statuses)
+                            if is_valid_ofp:
+                                shed_set = proposed_shed
+                                log_msg = f"OFP: Frekuensi {freq_hz:.2f}Hz tinggi! Nyalakan kembali {load['name']} (Lolos Cek Jaringan)."
+                                ofp_restored = True
+                                app.ofp_cooldown = 3  # tunggu 3 siklus sebelum OFP restore berikutnya
+                                break
+                            else:
+                                log_msg = f"OFP: {load['name']} ditahan — restore memicu overload jaringan (feeder masih gangguan)."
+                    if not ofp_restored:
+                        shed_set = current_tripped.copy()
+                        if log_msg.startswith("OFP:") and "ditahan" not in log_msg:
+                            log_msg = f"OFP: Frekuensi {freq_hz:.2f}Hz tinggi, tidak ada beban prio-2 yang aman untuk dipulihkan."
+
             # UFLS Trigger (Under-Frequency Load Shedding)
             # Hanya memutus beban jika frekuensi benar-benar anjlok (Simulasi fisis riil)
-            if freq_hz <= 49.0:
+            elif freq_hz <= 49.0:
                 calc_deficit = max(capacity_deficit, 0)
                 calc_deficit = max(calc_deficit, currently_shed_mw + (potential_total_demand * 0.1)) # Force shed more
                     
@@ -303,6 +391,8 @@ def background_monitoring():
                     shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
                     log_msg = (f"UFLS TRIGGERED! Melepas {len(shed_set)} beban "
                                f"({shed_mw:.0f}MW): {', '.join(sorted(shed_set))}{log_msg_extra}")
+                    if len(shed_set) > len(current_tripped):
+                        app.shed_holdoff = 3
 
             elif capacity_deficit > 0:
                 # Kondisi Defisit Stabil (Frekuensi normal, tapi kapasitas masih kurang)
@@ -334,6 +424,8 @@ def background_monitoring():
                         shed_set = new_shed_set
                         shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
                         log_msg = f"RE-PRIORITIZED! Menukar beban mati untuk mengamankan VIP ({shed_mw:.0f}MW).{log_msg_extra}"
+                        if len(new_shed_set) > len(current_tripped):
+                            app.shed_holdoff = 3
                     else:
                         shed_set = current_tripped.copy()
                 else:
@@ -342,71 +434,120 @@ def background_monitoring():
                     # Jangan ganggu log_msg agar tidak spam
                            
             else:
-                # Kapasitas mencukupi. 
-                # PROACTIVE CHECK: Apakah ada undervoltage / overload murni karena topologi (Feeder Contingency)?
-                is_valid, viol_buses = verify_ac_post_shedding(gen_statuses, live_loads, current_tripped, app.line_statuses)
-                if not is_valid:
-                    # Trigger SOCP shedding immediately!
-                    shed_set_socp, socp_status = solve_socp_fallback(gen_statuses, live_loads, current_tripped, app.line_statuses)
-                    if socp_status in ["optimal", "optimal_inaccurate"]:
-                        shed_set = shed_set_socp
-                        shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
-                        log_msg = f"TOPOLOGY TRIGGER (SOCP)! Melepas {len(shed_set)} beban ({shed_mw:.0f}MW) untuk menyelamatkan tegangan / overload."
-                    else:
-                        shed_set = current_tripped.copy()
-                        log_msg = "TOPOLOGY TRIGGER: SOCP gagal konvergen, mempertahankan state."
-                else:
-                    # Coba restore beban yang trip secara bertahap (1 per 1)
-                    shed_set = current_tripped.copy()
-                    if len(shed_set) > 0:
-                        if not hasattr(app, 'restore_timer'):
-                            app.restore_timer = 0
-                            
-                        # Pastikan tidak ada beban yang sedang soft-start (menunggu generator mengejar)
-                        is_settled = True
-                        for l in live_loads:
-                            if l['name'] not in shed_set:
-                                # Jika beban sudah on tapi aktualnya masih < 90% dari potensialnya, berarti masih soft-start
-                                if l['mw'] > 5 and l['actual_mw'] < l['mw'] * 0.9:
-                                    is_settled = False
-                                    break
-                                    
-                        if 49.95 <= freq_hz <= 52.25 and is_settled:
-                            app.restore_timer += 1
-                            if app.restore_timer >= 20: # Tunggu 20 siklus (2 detik) agar governor generator benar-benar tuntas mengejar beban sebelumnya
-                                # Hitung reserve berdasarkan beban yang PASTI akan ditarik setelah soft-start selesai
-                                expected_on_demand = sum(l['mw'] for l in live_loads if l['name'] not in shed_set)
-                                
-                                # SCADA Cerdas (Konservatif): Gunakan kapasitas efektif (Aktual + Margin aman 10 MW per Gen)
-                                # Margin diturunkan dari 20 ke 10 agar SCADA tidak terlalu serakah menyalakan beban besar
-                                effective_capacity = sum(min(g['mw'] + 10, g['rated']) for g in gen_statuses if g['status'] == 'ONLINE')
-                                true_reserve = effective_capacity - expected_on_demand
-                                
-                                for load in live_loads:
-                                    if load['name'] in shed_set:
-                                        if load['max_mw'] <= true_reserve:
-                                            # Simulasikan jika beban ini dinyalakan kembali
-                                            proposed_shed_set = shed_set.copy()
-                                            proposed_shed_set.remove(load['name'])
-                                            
-                                            # Augmentasi-2 Restorasi: Verifikasi Tegangan AC (Syarat Proposal C251)
-                                            is_valid, _ = verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed_set, app.line_statuses)
-                                            
-                                            if is_valid:
-                                                shed_set = proposed_shed_set
-                                                log_msg = f"RESTORASI: Menyalakan {load['name']} (Lolos Cek Tegangan)"
-                                                app.restore_timer = 0
-                                                break # Hanya 1 per siklus
-                                            else:
-                                                log_msg = f"RESTORASI TERTUNDA: {load['name']} memicu Undervoltage."
+                # Kapasitas mencukupi.
+                shed_set = current_tripped.copy()
+
+                # Cek holdoff DULU sebelum apapun — sama seperti penanganan gangguan generator.
+                # Selama holdoff aktif, skip proactive check agar SOCP tidak re-trigger tiap siklus
+                # dan beban tidak mati-nyala berulang.
+                if not hasattr(app, 'shed_holdoff'):
+                    app.shed_holdoff = 0
+
+                if app.shed_holdoff > 0:
+                    app.shed_holdoff -= 1
+                    if not hasattr(app, 'restore_timer'):
+                        app.restore_timer = 0
+                    app.restore_timer = 0
+                    log_msg = f"RESTORASI DITAHAN: Cooldown pasca-shedding ({app.shed_holdoff} siklus lagi)."
+
+                else:  # holdoff habis
+                    if app.feeder_contingency:
+                        # ── FEEDER CONTINGENCY MODE ──────────────────────────────────────────
+                        # Feeder masih offline: jangan re-trigger SOCP berulang.
+                        # Lakukan shed awal jika belum ada, lalu tahan state dan tunggu stabil.
+                        is_valid_fc, viol_buses = verify_ac_post_shedding(gen_statuses, live_loads, current_tripped, app.line_statuses)
+                        if not is_valid_fc:
+                            if len(current_tripped) == 0:
+                                # Belum ada shed — jalankan targeted contingency shedding
+                                shed_set_fc, reason = solve_feeder_contingency_shedding(gen_statuses, live_loads, current_tripped, app.line_statuses, viol_buses)
+                                if shed_set_fc:
+                                    shed_set = shed_set_fc
+                                    shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
+                                    log_msg = f"FEEDER TRIP [{reason}]: Shedding {len(shed_set)} beban ({shed_mw:.0f}MW) untuk amankan tegangan & saluran."
+                                    app.shed_holdoff = 3
+                                else:
+                                    shed_set = current_tripped.copy()
+                                    log_msg = "FEEDER TRIP: Gagal menemukan skema shedding aman, tahan state."
                             else:
-                                log_msg = f"Menunggu stabilitas sistem... ({app.restore_timer}/20)"
+                                # Beban sudah shed — tahan, tidak perlu SOCP ulang
+                                shed_set = current_tripped.copy()
+                                if not hasattr(app, 'restore_timer'): app.restore_timer = 0
+                                app.restore_timer = 0
+                                log_msg = "FEEDER CONTINGENCY: Jaringan terkendala (overload gen/topologi). Tahan state, tunggu feeder pulih."
                         else:
-                            app.restore_timer = 0
-                            if not is_settled:
-                                log_msg = "Menunggu beban/generator mencapai setpoint (Soft-Start)..."
+                            # AC valid — tunggu frekuensi benar-benar stabil sebelum restore
+                            if not hasattr(app, 'feeder_stable_count'): app.feeder_stable_count = 0
+                            if not hasattr(app, 'restore_timer'): app.restore_timer = 0
+
+                            if 49.5 <= freq_hz <= 50.5:
+                                app.feeder_stable_count += 1
                             else:
-                                log_msg = "Menunggu frekuensi stabil di >49.95 Hz untuk restorasi..."
+                                app.feeder_stable_count = 0
+                                app.restore_timer = 0
+                                log_msg = f"FEEDER CONTINGENCY: Menunggu frekuensi stabil ({freq_hz:.2f}Hz, perlu 49.5-50.5Hz)."
+
+                            # Feeder masih offline — TIDAK ada restore sama sekali.
+                            # Tunggu feeder kembali, baru restorasi penuh di mode normal.
+                            if app.feeder_stable_count >= 5:
+                                log_msg = f"FEEDER CONTINGENCY: Frekuensi stabil ({freq_hz:.2f}Hz). Tahan beban — tunggu feeder pulih sebelum restore."
+                            elif app.feeder_stable_count > 0:
+                                log_msg = f"FEEDER CONTINGENCY: Menunggu stabilitas ({app.feeder_stable_count}/5 siklus stabil)."
+
+                    else:
+                        # ── NORMAL MODE: proactive targeted + restore path ──────────────────
+                        is_valid, viol_buses = verify_ac_post_shedding(gen_statuses, live_loads, current_tripped, app.line_statuses)
+                        if not is_valid:
+                            shed_set_targeted, reason = solve_feeder_contingency_shedding(gen_statuses, live_loads, current_tripped, app.line_statuses, viol_buses)
+                            if shed_set_targeted:
+                                shed_set = shed_set_targeted
+                                shed_mw = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
+                                log_msg = f"TOPOLOGY TRIGGER [{reason}]! Melepas {len(shed_set)} beban ({shed_mw:.0f}MW) untuk menyelamatkan tegangan / overload."
+                                if len(shed_set) > len(current_tripped):
+                                    app.shed_holdoff = 3
+                            else:
+                                shed_set = current_tripped.copy()
+                                log_msg = "TOPOLOGY TRIGGER: Gagal menemukan solusi shedding, mempertahankan state."
+
+                        else:
+                            # Topologi aman — coba restore beban yang trip secara bertahap (1 per 1)
+                            if not hasattr(app, 'restore_timer'):
+                                app.restore_timer = 0
+
+                            is_settled = True
+                            for l in live_loads:
+                                if l['name'] not in shed_set:
+                                    if l['mw'] > 5 and l['actual_mw'] < l['mw'] * 0.9:
+                                        is_settled = False
+                                        break
+
+                            if 49.95 <= freq_hz <= 52.25 and is_settled:
+                                app.restore_timer += 1
+                                if app.restore_timer >= 3:
+                                    expected_on_demand = sum(l['mw'] for l in live_loads if l['name'] not in shed_set)
+                                    effective_capacity = sum(min(g['mw'] + 10, g['rated']) for g in gen_statuses if g['status'] == 'ONLINE')
+                                    true_reserve = effective_capacity - expected_on_demand
+
+                                    for load in live_loads:
+                                        if load['name'] in shed_set:
+                                            if load['max_mw'] <= true_reserve:
+                                                proposed_shed_set = shed_set.copy()
+                                                proposed_shed_set.remove(load['name'])
+                                                is_valid, _ = verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed_set, app.line_statuses)
+                                                if is_valid:
+                                                    shed_set = proposed_shed_set
+                                                    log_msg = f"RESTORASI: Menyalakan {load['name']} (Lolos Cek Jaringan)"
+                                                    app.restore_timer = 0
+                                                    break
+                                                else:
+                                                    log_msg = f"RESTORASI TERTUNDA: {load['name']} memicu overload/undervoltage (jaringan belum siap)."
+                                else:
+                                    log_msg = f"Menunggu stabilitas sistem... ({app.restore_timer}/3)"
+                            else:
+                                app.restore_timer = 0
+                                if not is_settled:
+                                    log_msg = "Menunggu beban/generator mencapai setpoint (Soft-Start)..."
+                                else:
+                                    log_msg = "Menunggu frekuensi stabil di >49.95 Hz untuk restorasi..."
 
             # Hitung Preselection Matrix (N-1 Generators)
             contingency_matrix = {}

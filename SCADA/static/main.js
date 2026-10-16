@@ -316,12 +316,12 @@ function applyHeatmapToSLD(d, scadaData) {
             if (busName.includes('66kV-1') && !isBus1Active) return;
             if (busName.includes('66kV-2') && !isBus2Active) return;
             
-            let color = '#00ffaa'; // Normal
+            let color = '#00ffaa'; // Normal (0.95 - 1.05 pu)
             if (b.vm_pu === null || b.vm_pu === undefined) {
                 color = '#475569'; // Offline / Terisolir
-            } else if (b.vm_pu > 1.02 || b.vm_pu < 0.99) {
-                color = '#ffca28'; // Warning (Tegangan mulai tidak ideal)
-                if (b.vm_pu > 1.05 || b.vm_pu < 0.95) color = '#ff4444'; // Danger (Tegangan kritis)
+            } else if (b.vm_pu > 1.05 || b.vm_pu < 0.95) {
+                color = '#ffca28'; // Warning (Deviasi tegangan: 0.90 - 0.95 pu atau 1.05 - 1.07 pu)
+                if (b.vm_pu > 1.07 || b.vm_pu < 0.90) color = '#ff4444'; // Danger (Kritis: < 0.90 pu atau > 1.07 pu)
             }
 
             let svgId = null;
@@ -379,11 +379,45 @@ function initSocket() {
         }
 
         const d = res.data;
-        document.getElementById('lf-max-loading').innerText = d.max_loading + '%';
-        document.getElementById('lf-max-loading').style.color = d.max_loading > 100 ? '#ff4444' : (d.max_loading > 80 ? '#ffca28' : '#00ffaa');
+
+        // 1. Max Trafo Loading & Lokasi
+        let maxTrafoVal = (d.max_trafo_loading !== undefined) ? d.max_trafo_loading : 0;
+        let maxTrafoName = d.max_trafo_name || "-";
+        if ((!maxTrafoName || maxTrafoName === "-") && d.trafos && d.trafos.length > 0) {
+            let topT = d.trafos.reduce((prev, curr) => (curr.loading_percent > prev.loading_percent) ? curr : prev);
+            maxTrafoVal = topT.loading_percent || 0;
+            maxTrafoName = topT.name || "-";
+        }
+        const trafoEl = document.getElementById('lf-max-trafo-loading');
+        const trafoNameEl = document.getElementById('lf-max-trafo-name');
+        if (trafoEl) {
+            trafoEl.innerHTML = `${maxTrafoVal.toFixed(2)}<span style="font-size: 1rem;">%</span>`;
+            trafoEl.style.color = maxTrafoVal > 100 ? '#ff4444' : (maxTrafoVal > 80 ? '#ffca28' : '#00ffaa');
+        }
+        if (trafoNameEl) {
+            trafoNameEl.innerHTML = `Lokasi: <span style="color: #fff; font-weight: 600;">${maxTrafoName}</span>`;
+        }
+
+        // 2. Max Line Loading & Lokasi
+        let maxLineVal = (d.max_line_loading !== undefined) ? d.max_line_loading : 0;
+        let maxLineName = d.max_line_name || "-";
+        if ((!maxLineName || maxLineName === "-") && d.lines && d.lines.length > 0) {
+            let topL = d.lines.reduce((prev, curr) => (curr.loading_percent > prev.loading_percent) ? curr : prev);
+            maxLineVal = topL.loading_percent || 0;
+            maxLineName = topL.name || "-";
+        }
+        const lineEl = document.getElementById('lf-max-line-loading');
+        const lineNameEl = document.getElementById('lf-max-line-name');
+        if (lineEl) {
+            lineEl.innerHTML = `${maxLineVal.toFixed(2)}<span style="font-size: 1rem;">%</span>`;
+            lineEl.style.color = maxLineVal > 100 ? '#ff4444' : (maxLineVal > 80 ? '#ffca28' : '#00ffaa');
+        }
+        if (lineNameEl) {
+            lineNameEl.innerHTML = `Lokasi: <span style="color: #fff; font-weight: 600;">${maxLineName}</span>`;
+        }
 
         document.getElementById('lf-min-voltage').innerText = d.min_v + ' pu';
-        document.getElementById('lf-min-voltage').style.color = d.min_v < 0.95 ? '#ff4444' : (d.min_v < 0.99 ? '#ffca28' : '#00ffaa');
+        document.getElementById('lf-min-voltage').style.color = d.min_v < 0.90 ? '#ff4444' : (d.min_v < 0.95 ? '#ffca28' : '#00ffaa');
 
         if (d.slack_name) {
             let shortName = d.slack_name.replace("Slack (", "").replace(")", "");
@@ -1095,6 +1129,13 @@ window.sendAllPriorities = function () {
 // --- CONTROLS ---
 function toggleGen(name, action) {
     if (!socket) return;
-    socket.emit('gen_control', { name, action });
+    if (!IS_ADMIN && window.location.search !== '?role=admin') {
+        alert("Hanya Admin yang dapat memutus/menyambung pembangkit.");
+        return;
+    }
+    
+    if (confirm(`Apakah Anda yakin ingin melakukan ${action} pada pembangkit ${name}?`)) {
+        socket.emit('gen_control', { name, action });
+    }
 }
 

@@ -51,9 +51,9 @@ GEN_CFG = {
     'PLTA': {
         'type': 'hydro',
         'rated': 75.0, 'min': 5.0,
-        'H': 5.0,       
+        'H': 5.0,
         'droop': 0.05,
-        'ramp': 5.0,   
+        'ramp': 10.0,  # Dinaikkan: hydro governor bisa ramp cepat saat emergency
         'mw_addr': 30,
     },
     'PLTS': {
@@ -69,15 +69,15 @@ GEN_CFG = {
         'rated': 75.0, 'min': 15.0,
         'H': 4.0,       # Sedang
         'droop': 0.04,
-        'ramp': 3.0,    
+        'ramp': 8.0,   # Dinaikkan: CCGT gas turbine section ramp cepat saat frekuensi deviasi besar
         'mw_addr': 32,
     },
     'PLTB': {
         'type': 'wind',
         'rated': 25.0, 'min': 0.0,
-        'H': 1.0,       # DFIG inertia
+        'H': 0.7,       # DFIG inertia
         'droop': 0.04,
-        'ramp': 2.0,    
+        'ramp': 3.0,    
         'mw_addr': 33,
     },
 }
