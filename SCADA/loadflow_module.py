@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import cvxpy as cp
 import numpy as np
+import itertools
 
 def solve_milp_shedding(deficit, live_loads, current_tripped=set(), must_shed_loads=None):
     prob = pulp.LpProblem("LoadShedding", pulp.LpMinimize)
@@ -68,18 +69,19 @@ def create_network():
     pp.create_transformer_from_parameters(net, hv_bus=b_150_2, lv_bus=b_66_2, sn_mva=125., vn_hv_kv=150., vn_lv_kv=66., vkr_percent=0.3, vk_percent=10., pfe_kw=50., i0_percent=0.1, name="Trafo 2")
     pp.create_transformer_from_parameters(net, hv_bus=b_150_4, lv_bus=b_20_1, sn_mva=100., vn_hv_kv=150., vn_lv_kv=20., vkr_percent=0.3, vk_percent=10., pfe_kw=50., i0_percent=0.1, name="Trafo 3")
 
-    # Lines (panjang kabel diperbesar agar voltage drop lebih mudah terjadi)
-    line_length = 60.0
-    pp.create_line_from_parameters(net, b_150_1, b_150_2, length_km=line_length, r_ohm_per_km=0.1, x_ohm_per_km=0.4, c_nf_per_km=10., max_i_ka=0.2, name="Line_1")
-    pp.create_line_from_parameters(net, b_150_1, b_150_3, length_km=line_length, r_ohm_per_km=0.1, x_ohm_per_km=0.4, c_nf_per_km=10., max_i_ka=0.3, name="Line_1-1")
-    pp.create_line_from_parameters(net, b_150_2, b_150_4, length_km=line_length, r_ohm_per_km=0.1, x_ohm_per_km=0.4, c_nf_per_km=10., max_i_ka=0.3, name="Line_1-2")
-    pp.create_line_from_parameters(net, b_150_3, b_150_4, length_km=line_length, r_ohm_per_km=0.1, x_ohm_per_km=0.4, c_nf_per_km=10., max_i_ka=0.2, name="Line_2")
+    # Lines — Spesifikasi konduktor berkas 150 kV pada ring 30 km (ACSR Grosbeak ~0.55 kA)
+    # Memberikan safety margin pasca-shedding di kisaran ~85-88% (tidak mepet 100%)
+    line_length = 30.0
+    pp.create_line_from_parameters(net, b_150_1, b_150_2, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.50, name="Line_1")
+    pp.create_line_from_parameters(net, b_150_1, b_150_3, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.55, name="Line_1-1")
+    pp.create_line_from_parameters(net, b_150_2, b_150_4, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.55, name="Line_1-2")
+    pp.create_line_from_parameters(net, b_150_3, b_150_4, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.38, name="Line_2")
 
-    # Generators
-    pp.create_ext_grid(net, bus=b_66_1, vm_pu=1.0, name="Slack (GEN_1A PLTA)")
+    # Generators — AVR diset 1.01 pu untuk profil tegangan alami & realistis
+    pp.create_ext_grid(net, bus=b_66_1, vm_pu=1.01, name="Slack (GEN_1A PLTA)")
     pp.create_sgen(net, bus=b_66_1, p_mw=25.0, name="GEN_1B PLTS")
     
-    pp.create_gen(net, bus=b_66_2, p_mw=75.0, vm_pu=1.0, name="GEN_2A PLTGU")
+    pp.create_gen(net, bus=b_66_2, p_mw=75.0, vm_pu=1.01, name="GEN_2A PLTGU")
     pp.create_sgen(net, bus=b_66_2, p_mw=25.0, name="GEN_2B PLTB")
     
     # Loads
@@ -99,7 +101,7 @@ def create_network():
     ]
     
     for ld in load_defs:
-        pp.create_load(net, bus=ld['bus'], p_mw=ld['p_mw'], name=ld['name'])
+        pp.create_load(net, bus=ld['bus'], p_mw=ld['p_mw'], q_mvar=ld['p_mw'] * 0.25, name=ld['name'])
         
     return net, load_defs
 
@@ -116,10 +118,22 @@ def get_results_dict(net):
     l_load = l_load.fillna(0)
     l_load.index = net.line.name
     
-    # Check max overload
-    max_line = l_load['loading_percent'].max()
-    max_trafo = t_load['loading_percent'].max()
-    max_loading = max(max_line, max_trafo)
+    # Check max overload & identity
+    if not l_load.empty and not pd.isna(l_load['loading_percent'].max()):
+        max_line_val = float(l_load['loading_percent'].max())
+        max_line_name = str(l_load['loading_percent'].idxmax())
+    else:
+        max_line_val = 0.0
+        max_line_name = "-"
+
+    if not t_load.empty and not pd.isna(t_load['loading_percent'].max()):
+        max_trafo_val = float(t_load['loading_percent'].max())
+        max_trafo_name = str(t_load['loading_percent'].idxmax())
+    else:
+        max_trafo_val = 0.0
+        max_trafo_name = "-"
+
+    max_loading = max(max_line_val, max_trafo_val)
     
     slack_mw = 0
     slack_name = "PLTA"
@@ -155,6 +169,10 @@ def get_results_dict(net):
         'slack_name': slack_name,
         'slack_capacity': float(slack_capacity),
         'max_loading': float(max_loading),
+        'max_trafo_loading': float(max_trafo_val),
+        'max_trafo_name': str(max_trafo_name),
+        'max_line_loading': float(max_line_val),
+        'max_line_name': str(max_line_name),
         'min_v': float(min_v),
         'max_v': float(max_v)
     }
@@ -209,9 +227,10 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads, line_statuses=Non
         if len(idx_load) > 0:
             is_on = pp_name not in tripped_loads
             net.load.loc[idx_load[0], 'in_service'] = is_on
-            # Gunakan actual_mw agar load flow sama persis dengan angka real-time sensor SCADA
+            # Gunakan actual_mw dan sertakan daya reaktif realistis (cosphi ~0.97 -> Q/P = 0.25)
             current_p = l.get('actual_mw', l['mw'])
             net.load.loc[idx_load[0], 'p_mw'] = current_p if current_p > 0 else 0.1
+            net.load.loc[idx_load[0], 'q_mvar'] = (current_p * 0.25) if current_p > 0 else 0.02
 
     # Update Transmission Lines (Feeder Contingencies)
     if line_statuses:
@@ -228,7 +247,7 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads, line_statuses=Non
             bus_idx = net.gen.loc[gen_idx, 'bus']
             gen_name = net.gen.loc[gen_idx, 'name']
             net.gen.loc[gen_idx, 'in_service'] = False # Disable gen, replace with ext_grid
-            pp.create_ext_grid(net, bus=bus_idx, vm_pu=1.0, name=f"Slack ({gen_name})")
+            pp.create_ext_grid(net, bus=bus_idx, vm_pu=1.01, name=f"Slack ({gen_name})")
         else:
             active_sgens = net.sgen[net.sgen.in_service == True]
             if not active_sgens.empty:
@@ -236,7 +255,7 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads, line_statuses=Non
                 bus_idx = net.sgen.loc[sgen_idx, 'bus']
                 sgen_name = net.sgen.loc[sgen_idx, 'name']
                 net.sgen.loc[sgen_idx, 'in_service'] = False
-                pp.create_ext_grid(net, bus=bus_idx, vm_pu=1.0, name=f"Slack ({sgen_name})")
+                pp.create_ext_grid(net, bus=bus_idx, vm_pu=1.01, name=f"Slack ({sgen_name})")
             else:
                 # TOTAL BLACKOUT (Semua generator mati)
                 return {'status': 'error', 'message': 'TOTAL BLACKOUT - Tidak ada generator aktif'}
@@ -256,8 +275,8 @@ def run_live_loadflow(gen_statuses, live_loads, tripped_loads, line_statuses=Non
     return res
 def verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed_set, line_statuses=None):
     """
-    Menjalankan simulasi AC Load Flow untuk memverifikasi tegangan
-    setelah MILP mengusulkan pemutusan beban.
+    Menjalankan simulasi AC Load Flow untuk memverifikasi tegangan dan loading
+    setelah MILP/targeted shedding mengusulkan pemutusan beban.
     Returns: (is_valid, list_of_violating_bus_names)
     """
     # Run AC Load Flow simulasi dengan `proposed_shed_set` dan `line_statuses`
@@ -268,13 +287,44 @@ def verify_ac_post_shedding(gen_statuses, live_loads, proposed_shed_set, line_st
     import pandas as pd
     buses = res['buses']
     violating_buses = []
+    
+    # Standar Grid Code: Normal 0.95 - 1.05 pu, Kontingensi Darurat (N-1) 0.90 - 1.05 pu
+    is_contingency = bool(line_statuses and any(s != 'ONLINE' for s in line_statuses.values()))
+    v_min_limit = 0.90 if is_contingency else 0.95
+    v_max_limit = 1.05
+
     for i, b in enumerate(buses):
         val = b.get('vm_pu')
-        # Batas tegangan kritis diperketat: 0.95 pu - 1.05 pu, NaN berarti bus terisolir (Blackout)
-        if pd.isna(val) or val is None or val < 0.95 or val > 1.05:
-            # Cari nama index atau gunakan fallback enumerasi berurut
+        if pd.isna(val) or val is None or val < v_min_limit or val > v_max_limit:
             bus_idx = b.get('index', b.get('bus_id', b.get('level_0', i)))
-            violating_buses.append(bus_idx)
+            if bus_idx not in violating_buses:
+                violating_buses.append(bus_idx)
+
+    # Cek loading saluran transmisi & trafo — mapping bus dinamis dari topologi
+    # Standar N-1 Security Margin: selama gangguan saluran transmisi, target pasca-shedding
+    # dibatasi <= 85% agar kawat beroperasi dingin dan menyisakan cadangan termal.
+    line_loading_limit = 85.0 if is_contingency else 100.0
+    trafo_loading_limit = 100.0
+
+    net, _ = create_network()
+    # Buat dict nama line -> [from_bus, to_bus]
+    line_bus_map = {row['name']: [row['from_bus'], row['to_bus']]
+                   for _, row in net.line.iterrows()}
+    # Buat dict nama trafo -> [hv_bus, lv_bus]
+    trafo_bus_map = {row['name']: [row['hv_bus'], row['lv_bus']]
+                    for _, row in net.trafo.iterrows()}
+
+    for line in res.get('lines', []):
+        if line.get('loading_percent', 0) > line_loading_limit:
+            for b_idx in line_bus_map.get(line.get('name'), []):
+                if b_idx not in violating_buses:
+                    violating_buses.append(b_idx)
+
+    for trafo in res.get('trafos', []):
+        if trafo.get('loading_percent', 0) > trafo_loading_limit:
+            for b_idx in trafo_bus_map.get(trafo.get('name'), []):
+                if b_idx not in violating_buses:
+                    violating_buses.append(b_idx)
             
     return len(violating_buses) == 0, violating_buses
 
@@ -421,4 +471,59 @@ def solve_socp_fallback(gen_statuses, live_loads, current_tripped=set(), line_st
                 shed_set.add(l_dict['name'])
                 
     return shed_set, prob.status
+ 
+def solve_feeder_contingency_shedding(gen_statuses, live_loads, current_tripped, line_statuses, viol_buses):
+    """
+    Targeted Locational Sensitivity-based Load Shedding untuk Feeder Contingency:
+    1. Memprioritaskan beban di gardu yang kehilangan suplai transmisi langsung (Locational Proximity / SPS).
+    2. Menguji beban Prioritas 2 (non-esensial) terbesar terlebih dahulu secara selektif.
+    3. Jika pemotongan 1 beban tunggal cukup mengembalikan sistem ke kondisi aman (<= 85%),
+       hanya beban tersebut yang dilepas (mencegah over-shedding massal).
+    4. Jika 1 beban belum cukup, menguji pasangan 2 beban (mengutamakan beban lokal terlebih dahulu).
+    5. Jika Prioritas 2 habis, baru merambah ke Prioritas 3.
+    6. Fallback ke SOCP OPF jika pencarian kombinasi minimal tidak konvergen.
+    """
+    candidates = [l for l in live_loads if l['name'] not in current_tripped]
+
+    # Identifikasi gardu lokal yang terdampak langsung oleh kawat transmisi yang putus
+    local_prefix = ''
+    if line_statuses:
+        if line_statuses.get('Line_1-1') == 'OFFLINE':
+            local_prefix = 'L3'  # Gardu Induk N3 (Sisi Kiri)
+        elif line_statuses.get('Line_1-2') == 'OFFLINE':
+            local_prefix = 'L4'  # Gardu Induk N4 (Sisi Kanan)
+
+    # Evaluasi beban Prioritas 2 (Non-Esensial), lalu jika belum cukup masuk ke Prioritas 3 (Esensial)
+    for target_prio in [2, 3]:
+        prio_cands = [l for l in candidates if l.get('priority', 2) == target_prio]
+        # Sort: utamakan beban lokal gardu terdampak lebih dulu, lalu descending MW
+        prio_cands.sort(key=lambda x: (1 if (local_prefix and x['name'].startswith(local_prefix)) else 0, x.get('actual_mw', x.get('mw', 0))), reverse=True)
+        
+        # 1. Coba 1 beban tunggal (terbesar lebih dulu)
+        for cand in prio_cands:
+            test_set = current_tripped | {cand['name']}
+            valid, _ = verify_ac_post_shedding(gen_statuses, live_loads, test_set, line_statuses)
+            if valid:
+                return test_set, f"Targeted Single ({cand['name']})"
+                
+        # 2. Coba pasangan 2 beban jika 1 beban belum cukup
+        # Urutkan pasangan: utamakan yang memotong beban lokal terbanyak, lalu total MW minimal (hemat energi)
+        pairs = list(itertools.combinations(prio_cands, 2))
+        def pair_score(pair):
+            loc_count = sum(1 for x in pair if local_prefix and x['name'].startswith(local_prefix))
+            total_mw = sum(x.get('actual_mw', x.get('mw', 0)) for x in pair)
+            return (-loc_count, total_mw)
+            
+        pairs.sort(key=pair_score)
+
+        for pair in pairs:
+            test_set = current_tripped | {pair[0]['name'], pair[1]['name']}
+            valid, _ = verify_ac_post_shedding(gen_statuses, live_loads, test_set, line_statuses)
+            if valid:
+                return test_set, f"Targeted Pair ({pair[0]['name']}+{pair[1]['name']})"
+
+    # Fallback ke SOCP OPF jika pencarian kombinasi minimal tidak konvergen
+    shed_socp, socp_st = solve_socp_fallback(gen_statuses, live_loads, current_tripped, line_statuses)
+    return shed_socp, "SOCP Fallback"
+
 
