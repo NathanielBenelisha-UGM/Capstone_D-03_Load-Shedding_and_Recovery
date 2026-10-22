@@ -134,7 +134,7 @@ function initFreqChart() {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { min: 48.0, max: 52.0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                y: { min: 48.0, max: 52.0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', stepSize: 0.2 } },
                 x: { display: false }
             },
             plugins: { legend: { display: false } },
@@ -543,9 +543,12 @@ function updateSLD(data) {
     let isGridActive = data.total_gen > 0;
 
     data.loads.forEach(l => {
-        let isTripped = l.status === 'TRIPPED';
-        let color = (!isGridActive || isTripped) ? '#ff4444' : '#00ffaa';
-        let shadow = (!isGridActive || isTripped) ? 'rgba(255,68,68,0.6)' : 'rgba(0,255,170,0.6)';
+        // Status yang ditampilkan = feedback PLC (plc_status) bila tersedia
+        const shownStatus = l.plc_status || l.status;
+        let isTripped = shownStatus === 'TRIPPED';
+        let isUnknown = shownStatus === 'UNKNOWN';
+        let color = isUnknown ? '#9ca3af' : ((!isGridActive || isTripped) ? '#ff4444' : '#00ffaa');
+        let shadow = isUnknown ? 'rgba(156,163,175,0.5)' : ((!isGridActive || isTripped) ? 'rgba(255,68,68,0.6)' : 'rgba(0,255,170,0.6)');
         let flow = isGridActive && !isTripped;
         colorize(`New\\${l.id}.ElmLod`, color, shadow, flow);
 
@@ -855,6 +858,20 @@ const BUS_MAP = {
     'L401': 'N4_SS4', 'L402': 'N4_SS4', 'L403': 'N4_SS4', 'L404': 'N4_SS4', 'L405': 'N4_SS4'
 };
 
+// Badge status beban: feedback PLC + penanda mismatch / kelompok Q9
+function loadStatusCell(l) {
+    const shown = l.plc_status || l.status;
+    const cls = shown === 'TRIPPED' ? 'offline' : (shown === 'UNKNOWN' ? 'unknown' : 'online');
+    let html = `<span class="badge ${cls}">${shown}</span>`;
+    if (l.fb_source === 'GROUP') {
+        html += ` <span class="badge group" title="L403-L405 berbagi satu output PLC (Q9)">Q9 GRUP</span>`;
+    }
+    if (l.fb_mismatch) {
+        html += ` <span class="badge warning" title="Perintah SCADA tidak sesuai status output PLC">MISMATCH</span>`;
+    }
+    return html;
+}
+
 function updateLoads(data) {
     const tbody = document.getElementById('load-table-body');
     const busTbody = document.getElementById('bus-priority-body');
@@ -870,7 +887,7 @@ function updateLoads(data) {
             <tr>
                 <td>${l.id}</td>
                 <td>${l.mw} MW</td>
-                <td><span class="badge ${l.status === 'TRIPPED' ? 'offline' : 'online'}">${l.status}</span></td>
+                <td>${loadStatusCell(l)}</td>
             </tr>`;
 
         // --- 2. Bus Grouping & Priority Table ---
@@ -940,8 +957,9 @@ function logAlarm(msg) {
     if (rawMsg === lastRawMsg) return;
     lastRawMsg = rawMsg;
 
-    const isError = msg.includes('DEFISIT') || msg.includes('TRIPPED') || msg.includes('UFLS');
-    const isSuccess = msg.includes('RESTORASI');
+    const isError = msg.includes('DEFISIT') || msg.includes('TRIPPED') || msg.includes('UFLS')
+        || msg.includes('MISMATCH') || msg.includes('TIDAK TERBACA');
+    const isSuccess = msg.includes('RESTORASI') || msg.includes('FEEDBACK NORMAL') || msg.includes('FEEDBACK PLC PULIH');
     const isWarning = msg.includes('RE-PRIORITIZED');
     let color = 'inherit';
     if (isError) color = 'var(--danger-red)';

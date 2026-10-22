@@ -161,6 +161,9 @@ body, html {
 .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; letter-spacing: 1px; }
 .badge.online { background: rgba(61,205,88,0.15); color: var(--success-green); }
 .badge.offline { background: rgba(255,42,95,0.15); color: var(--danger-red); }
+.badge.unknown { background: rgba(156,163,175,0.18); color: #9ca3af; }
+.badge.warning { background: rgba(245,158,11,0.18); color: #f59e0b; }
+.badge.group { background: rgba(59,130,246,0.15); color: #60a5fa; font-size: 0.6rem; }
 
 /* BUTTONS */
 .btn {
