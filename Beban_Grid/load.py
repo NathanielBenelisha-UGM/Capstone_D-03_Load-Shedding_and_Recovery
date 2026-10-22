@@ -1,7 +1,17 @@
-import time
-import random
-import math
+"""
+load.py - Physics engine beban & generator (swing equation) -> PLC M241
+=======================================================================
+Setiap siklus (DT = 0.1 s):
+  1. Baca perintah trip generator & beban dari PLC (1 transaksi Modbus)
+  2. Hitung beban (profil harian, soft-start, override HMI, noise)
+  3. Dispatch generator + governor droop + ramp rate
+  4. Hitung frekuensi (swing equation)
+  5. Tulis hasil ke PLC (beban, generator, jam, frekuensi)
+"""
 import os
+import random
+import time
+
 from plc_modbus import M241Client as ModbusTcpClient
 
 # =========================================================
@@ -15,143 +25,98 @@ client.connect()
 # =========================================================
 # PETA MEMORY WORD
 # =========================================================
-# %MW0–%MW11  : Nilai beban aktual (ditulis load.py)
-# %MW20–%MW21 : Jam & Menit simulasi
-# %MW30–%MW33 : Output generator PLTA/PLTS/PLTGU/PLTB (MW)
-# %MW40–%MW51 : Override beban per-channel (0=AUTO, >0=CONFIG)
-# %MW54–%MW57 : Frekuensi sistem × 100 (5000 = 50.00 Hz)
-#               ditulis load.py, dibaca app.py/HMI
-
+# %MW0-%MW11  : Nilai beban aktual (ditulis load.py)
+# %MW20-%MW21 : Jam & Menit simulasi
+# %MW30-%MW33 : Output generator PLTA/PLTS/PLTGU/PLTB (MW x10)
+# %MW40-%MW51 : Override beban per-channel (0=AUTO, >0=CONFIG)
+# %MW54       : Frekuensi sistem x100 (5000 = 50.00 Hz)
 ADDR_LOADS    = 0
 ADDR_CLOCK    = 20
-ADDR_GEN_OUT  = 30   # %MW30–%MW33
-ADDR_OVERRIDE = 40   # %MW40–%MW51
-ADDR_FREQ     = 54   # %MW54 (frekuensi × 100, integer)
+ADDR_GEN_OUT  = 30
+ADDR_OVERRIDE = 40
+ADDR_FREQ     = 54
 
-# Coils
-GEN_COIL_CMD = {'PLTA': 50, 'PLTS': 51, 'PLTGU': 52, 'PLTB': 53}
-GEN_COIL_STS = {'PLTA': 0, 'PLTS': 1, 'PLTGU': 2, 'PLTB': 3}
-
+# Bit %M (lewat adapter plc_modbus)
+GEN_COIL_CMD = {'PLTA': 50, 'PLTS': 51, 'PLTGU': 52, 'PLTB': 53}   # perintah trip dari SCADA
+GEN_COIL_STS = {'PLTA': 0, 'PLTS': 1, 'PLTGU': 2, 'PLTB': 3}       # status ONLINE ke SCADA
 LOAD_COILS = {
     'L101': 21, 'L201': 22, 'L303': 23, 'L304': 24, 'L305': 25, 'L401': 26,
     'L301': 31, 'L302': 32, 'L402': 33,
-    'L403': 41, 'L404': 42, 'L405': 43
+    'L403': 41, 'L404': 42, 'L405': 43,
 }
+# Satu blok baca mencakup bit trip beban (21-43) dan perintah generator (50-53)
+CMD_BIT_FIRST = 21
+CMD_BIT_COUNT = 53 - CMD_BIT_FIRST + 1
 
 # =========================================================
 # KONFIGURASI BEBAN
 # =========================================================
-load_names = ['L101','L201','L303','L304','L305','L401','L301','L302','L402','L403','L404','L405']
-max_vals   = [ 20,    20,    15,    20,    30,    30,    5,     10,    5,     10,    15,    20  ]
+load_names = ['L101', 'L201', 'L303', 'L304', 'L305', 'L401', 'L301', 'L302', 'L402', 'L403', 'L404', 'L405']
+max_vals   = [20,     20,     15,     20,     30,     30,     5,      10,     5,      10,     15,     20]
 
 # =========================================================
-# KONFIGURASI GENERATOR — Karakteristik Fisik Per Jenis
+# KONFIGURASI GENERATOR - Karakteristik Fisik Per Jenis
 # =========================================================
 GEN_CFG = {
-    'PLTA': {
-        'type': 'hydro',
-        'rated': 75.0, 'min': 5.0,
-        'H': 5.0,       
-        'droop': 0.05,
-        'ramp': 5.0,   
-        'mw_addr': 30,
-    },
-    'PLTS': {
-        'type': 'solar_bess', # PLTS + BESS
-        'rated': 25.0, 'min': 0.0,
-        'H': 0.5,       # BESS virtual inertia
-        'droop': 0.02,
-        'ramp': 5.0,    
-        'mw_addr': 31,
-    },
-    'PLTGU': {
-        'type': 'gas',
-        'rated': 75.0, 'min': 15.0,
-        'H': 4.0,       # Sedang
-        'droop': 0.04,
-        'ramp': 3.0,    
-        'mw_addr': 32,
-    },
-    'PLTB': {
-        'type': 'wind',
-        'rated': 25.0, 'min': 0.0,
-        'H': 1.0,       # DFIG inertia
-        'droop': 0.04,
-        'ramp': 2.0,    
-        'mw_addr': 33,
-    },
+    'PLTA':  {'type': 'hydro',      'rated': 75.0, 'min': 5.0,  'H': 5.0, 'droop': 0.05, 'ramp': 5.0},
+    'PLTS':  {'type': 'solar_bess', 'rated': 25.0, 'min': 0.0,  'H': 0.5, 'droop': 0.02, 'ramp': 5.0},  # PLTS + BESS (virtual inertia)
+    'PLTGU': {'type': 'gas',        'rated': 75.0, 'min': 15.0, 'H': 4.0, 'droop': 0.04, 'ramp': 3.0},
+    'PLTB':  {'type': 'wind',       'rated': 25.0, 'min': 0.0,  'H': 1.0, 'droop': 0.04, 'ramp': 2.0},  # DFIG
 }
-
 GEN_ORDER = ['PLTA', 'PLTS', 'PLTGU', 'PLTB']
+
+F_NOM  = 50.0                                         # Frekuensi nominal (Hz)
+S_BASE = sum(GEN_CFG[g]['rated'] for g in GEN_ORDER)  # Total kapasitas (MVA)
+D_DAMPING = 1.5      # Load damping factor
+H_VIRTUAL = 3        # Virtual inertia BESS grid-forming (jaga nadir > 49.50 Hz saat kontingensi ganda)
+DT = 0.1             # Siklus 10x per detik
+TIME_SPEED_FACTOR = 12.0   # 12x: 5 detik dunia nyata = 1 menit simulasi
+
 
 # =========================================================
 # PROFIL BEBAN HARIAN (WBP/LWBP Indonesia)
 # =========================================================
 def get_load_pct(hour):
-    profile = {0:0.41, 4:0.32, 6:0.59, 9:0.72,
-               12:0.77, 15:0.72, 17:0.81, 19:0.90,
-               21:0.77, 23:0.54, 24:0.41}
+    profile = {0: 0.41, 4: 0.32, 6: 0.59, 9: 0.72,
+               12: 0.77, 15: 0.72, 17: 0.81, 19: 0.90,
+               21: 0.77, 23: 0.54, 24: 0.41}
     hs = sorted(profile.keys())
-    for i in range(len(hs)-1):
-        if hs[i] <= hour <= hs[i+1]:
-            h1,h2,p1,p2 = hs[i],hs[i+1],profile[hs[i]],profile[hs[i+1]]
-            return p1 if h2==h1 else p1+((hour-h1)/(h2-h1))*(p2-p1)
+    for i in range(len(hs) - 1):
+        if hs[i] <= hour <= hs[i + 1]:
+            h1, h2, p1, p2 = hs[i], hs[i + 1], profile[hs[i]], profile[hs[i + 1]]
+            return p1 if h2 == h1 else p1 + ((hour - h1) / (h2 - h1)) * (p2 - p1)
     return 0.45
 
-# =========================================================
-# PROFIL SOLAR (PLTS) — Mengikuti Iradiasi Matahari
-# =========================================================
-def get_solar_factor(hour):
-    """0.0–1.0 berdasarkan posisi matahari (sinus) + variasi awan"""
-    if hour < 5.5 or hour > 18.5:
-        return 0.0
-    peak = math.sin(math.pi * (hour - 5.5) / 13.0)
-    cloud = random.uniform(0.75, 1.0)   # simulasi awan acak
-    return max(0.0, peak * cloud)
 
 # =========================================================
-# INISIALISASI STATE & KECEPATAN WAKTU
+# INISIALISASI STATE
 # =========================================================
-# TIME_SPEED_FACTOR: 12.0 = 12x (5 detik dunia nyata = 1 menit simulasi)
-TIME_SPEED_FACTOR = 12.0
 sim_time = 19.0
 init_pct = get_load_pct(sim_time % 24)
 current_loads = [max(1.0, float(m * init_pct)) for m in max_vals]
+load_noise_factors = [0.0] * 12
 
-# RESET PLC OVERRIDES & COILS SAAT STARTUP — tunggu sampai koneksi berhasil
+# Reset override & breaker beban di PLC saat startup - tunggu sampai koneksi berhasil
 print("Membersihkan memori PLC (Override & Breaker)...")
 while True:
     try:
         if client.connect():
-            client.write_registers(address=ADDR_OVERRIDE, values=[0]*12)
-            for name in load_names:
-                client.write_coil(LOAD_COILS[name], False)
+            client.write_registers(address=ADDR_OVERRIDE, values=[0] * 12)
+            client.write_coil_map({LOAD_COILS[n]: False for n in load_names})
             print("PLC berhasil dibersihkan. Simulator siap!")
             break
-        else:
-            print("Menunggu koneksi PLC untuk inisialisasi...")
+        print("Menunggu koneksi PLC untuk inisialisasi...")
     except Exception as e:
         print(f"Menunggu PLC... ({e})")
-    import time as _t; _t.sleep(2)
+    time.sleep(2)
 
+# Output generator awal mengikuti beban awal agar tidak trip di detik pertama
 init_total = sum(current_loads)
-
-# State output generator saat ini (MW) - Dinamis mengikuti beban awal agar tidak trip di detik pertama
-gen_output = {
-    'PLTA':  (75.0 / 200.0) * init_total,
-    'PLTS':  (25.0 / 200.0) * init_total,
-    'PLTGU': (75.0 / 200.0) * init_total,
-    'PLTB':  (25.0 / 200.0) * init_total,
-}
-
-# Frekuensi sistem (Hz)
+gen_output = {g: (GEN_CFG[g]['rated'] / S_BASE) * init_total for g in GEN_ORDER}
 freq = 50.0
 
-F_NOM   = 50.0    # Frekuensi nominal (Hz)
-S_BASE  = sum(GEN_CFG[g]['rated'] for g in GEN_ORDER)  # Total kapasitas (MVA)
-
 print("=" * 65)
-print("  SIMULATOR — Beban & Generator → PLC")
+print("  SIMULATOR - Beban & Generator -> PLC")
 gen_summary = ', '.join(f"{g}({GEN_CFG[g]['type']})" for g in GEN_ORDER)
 print(f"  Generator: {gen_summary}")
 print(f"  S_base = {S_BASE:.0f} MVA | F_nom = {F_NOM} Hz")
@@ -160,206 +125,119 @@ print("=" * 65)
 # =========================================================
 # LOOP UTAMA
 # =========================================================
-DT = 0.1   # Refresh rate 10x per detik (0.1s)
-load_noise_factors = [0.0] * 12
-
 while True:
     try:
         hour = sim_time % 24
-        # ─────────────────────────────────────────────
-        # 1. BACA STATUS BREAKER (Generator & Beban)
-        # ─────────────────────────────────────────────
-        gen_online = {}
-        for g in GEN_ORDER:
-            cmd = client.read_coils(GEN_COIL_CMD[g], count=1)
-            is_off_cmd = cmd.bits[0] if not cmd.isError() else False
-            gen_online[g] = not is_off_cmd
-            client.write_coil(GEN_COIL_STS[g], gen_online[g])
 
-        load_tripped = {}
-        for name in load_names:
-            c = client.read_coils(LOAD_COILS[name], count=1)
-            load_tripped[name] = c.bits[0] if not c.isError() else False
+        # ── 1. BACA PERINTAH TRIP (generator & beban) - satu transaksi
+        cmd = client.read_coils(CMD_BIT_FIRST, count=CMD_BIT_COUNT)
+        bits = cmd.bits if not cmd.isError() else [False] * CMD_BIT_COUNT
+        gen_online = {g: not bits[GEN_COIL_CMD[g] - CMD_BIT_FIRST] for g in GEN_ORDER}
+        load_tripped = {n: bits[LOAD_COILS[n] - CMD_BIT_FIRST] for n in load_names}
+        client.write_coil_map({GEN_COIL_STS[g]: gen_online[g] for g in GEN_ORDER})
 
-        # ─────────────────────────────────────────────
-        # 2. UPDATE BEBAN (dengan per-channel override & trip)
-        # ─────────────────────────────────────────────
+        # ── 2. UPDATE BEBAN (override per-channel, trip, soft-start, noise)
         ov_result = client.read_holding_registers(address=ADDR_OVERRIDE, count=12)
-        override  = list(ov_result.registers) if not ov_result.isError() else [0]*12
+        override = list(ov_result.registers) if not ov_result.isError() else [0] * 12
 
         target_pct = get_load_pct(hour)
         override_ch = []
+        load_regs = []
         total_load_with_noise = 0.0
-        total_load_modbus_int = 0
         for i, name in enumerate(load_names):
-            is_overridden = False
             if override[i] > 0:
-                potential = min(override[i] / 10.0, max_vals[i])
                 override_ch.append(name)
-                is_overridden = True
-            else:
-                tgt = max_vals[i] * target_pct
-            
-            # Jika tripped (coil == True), actual load = 0
             if load_tripped[name]:
                 current_loads[i] = 0.0
                 final_val = 0.0
-            elif is_overridden:
-                # Bypass soft-start: Langsung statis ke angka override
-                current_loads[i] = float(potential)
+            elif override[i] > 0:
+                # Override HMI: langsung ke nilai paksa (tanpa soft-start)
+                current_loads[i] = float(min(override[i] / 10.0, max_vals[i]))
                 final_val = current_loads[i]
             else:
-                # Soft-start base load agar tidak melonjak kasar
-                diff = tgt - current_loads[i]
-                max_step = max_vals[i] * 0.01 
-                move = max(-max_step, min(max_step, diff))
-                current_loads[i] += move
-                
-                # Tambahkan noise dinamis agar terlihat real-time (hanya jika sudah dekat target)
+                # Soft-start menuju target profil harian
+                diff = max_vals[i] * target_pct - current_loads[i]
+                max_step = max_vals[i] * 0.01
+                current_loads[i] += max(-max_step, min(max_step, diff))
+
+                # Noise dinamis hanya jika sudah dekat target
                 if abs(diff) < max_vals[i] * 0.05:
                     load_noise_factors[i] += random.uniform(-0.01, 0.01)
                     load_noise_factors[i] = max(-0.05, min(0.05, load_noise_factors[i]))
                     noise = load_noise_factors[i] * max_vals[i]
                 else:
                     noise = 0.0
-                    
-                final_val = current_loads[i] + noise
-                final_val = max(1.0, min(float(max_vals[i]), final_val))
-                
+                final_val = max(1.0, min(float(max_vals[i]), current_loads[i] + noise))
+
             total_load_with_noise += final_val
-            total_load_modbus_int += int(round(final_val * 10))
-            # Tulis nilai aktual ke %MW0--%MW11 (x10 untuk resolusi 1 desimal Modbus)
-            client.write_register(address=ADDR_LOADS + i, value=int(round(final_val * 10)))
-            
-        # Hitung total load dari array current_loads yang murni tanpa noise
-        # Ini penting agar generator dispatch tidak ikut bergetar akibat noise.
+            load_regs.append(int(round(final_val * 10)))   # x10 -> resolusi 0.1 MW
+
+        # Dispatch memakai beban tanpa noise agar generator tidak ikut bergetar
         total_load = sum(current_loads)
 
-        # ─────────────────────────────────────────────
-        # 3. DISPATCH GENERATOR — BESS membuat PLTS dispatchable
-        # ─────────────────────────────────────────────
-        required_dispatch = total_load
-        
-        avail_plta  = GEN_CFG['PLTA']['rated'] if gen_online['PLTA'] else 0.0
-        avail_plts  = GEN_CFG['PLTS']['rated'] if gen_online['PLTS'] else 0.0
-        avail_pltgu = GEN_CFG['PLTGU']['rated'] if gen_online['PLTGU'] else 0.0
-        avail_pltb  = GEN_CFG['PLTB']['rated'] if gen_online['PLTB'] else 0.0
-        
-        total_avail = avail_plta + avail_plts + avail_pltgu + avail_pltb
-
-        targets = {}
-        if total_avail > 0:
-            targets['PLTA']  = (avail_plta / total_avail) * required_dispatch if gen_online['PLTA'] else 0.0
-            targets['PLTS']  = (avail_plts / total_avail) * required_dispatch if gen_online['PLTS'] else 0.0
-            targets['PLTGU'] = (avail_pltgu / total_avail) * required_dispatch if gen_online['PLTGU'] else 0.0
-            targets['PLTB']  = (avail_pltb / total_avail) * required_dispatch if gen_online['PLTB'] else 0.0
-        else:
-            targets['PLTA'] = targets['PLTS'] = targets['PLTGU'] = targets['PLTB'] = 0.0
+        # ── 3. DISPATCH GENERATOR (BESS membuat PLTS dispatchable)
+        avail = {g: GEN_CFG[g]['rated'] if gen_online[g] else 0.0 for g in GEN_ORDER}
+        total_avail = sum(avail[g] for g in GEN_ORDER)
 
         for g in GEN_ORDER:
+            cfg = GEN_CFG[g]
             if not gen_online[g]:
                 gen_output[g] = 0.0
                 continue
-                
-            target = targets[g]
-            # Primary frequency response (Droop)
-            if GEN_CFG[g]['droop'] > 0:
-                dp = - ((freq - 50.0) / 50.0) * (1.0 / GEN_CFG[g]['droop']) * GEN_CFG[g]['rated']
-                target += dp
-            target = max(GEN_CFG[g]['min'], min(GEN_CFG[g]['rated'], target))
-            
-            # Ramp Rate - BESS / Inverters have extremely fast ramp rates
-            diff_g = target - gen_output[g]
-            ramp_multiplier = 4.0 if GEN_CFG[g]['type'] in ['solar_bess', 'wind'] else 2.0
-            ramp_limit = GEN_CFG[g]['ramp'] * ramp_multiplier * DT
-            step_g = max(-ramp_limit, min(ramp_limit, diff_g))
-            
+            target = (avail[g] / total_avail) * total_load
+            # Primary frequency response (droop)
+            if cfg['droop'] > 0:
+                target += -((freq - 50.0) / 50.0) * (1.0 / cfg['droop']) * cfg['rated']
+            target = max(cfg['min'], min(cfg['rated'], target))
+
+            # Ramp rate (inverter BESS/angin lebih cepat)
+            ramp_multiplier = 4.0 if cfg['type'] in ('solar_bess', 'wind') else 2.0
+            ramp_limit = cfg['ramp'] * ramp_multiplier * DT
+            step_g = max(-ramp_limit, min(ramp_limit, target - gen_output[g]))
             noise_g = random.uniform(-0.1, 0.1) if target > 0 else 0.0
-            new_out = gen_output[g] + step_g + noise_g
-            
-            gen_output[g] = max(GEN_CFG[g]['min'], min(GEN_CFG[g]['rated'], round(new_out, 3)))
+            gen_output[g] = max(cfg['min'], min(cfg['rated'], round(gen_output[g] + step_g + noise_g, 3)))
 
         total_gen = sum(gen_output.values())
 
-        # ─────────────────────────────────────────────
-        # 4. HITUNG FREKUENSI SISTEM (Swing Equation)
-        # ─────────────────────────────────────────────
-        delta_p_pu = (total_gen - total_load_with_noise) / S_BASE
-
-        h_weighted = sum(GEN_CFG[g]['H'] * gen_output[g] for g in GEN_ORDER if gen_online[g])
-        h_eff = h_weighted / max(total_gen, 1.0)
-        
-        # Penambahan Virtual Inertia (BESS Grid-Forming Synthetic Inertia Support)
-        # Menjaga RoCoF tetap aman sehingga frekuensi nadir > 49.50 Hz saat gangguan kontingensi ganda
-        h_eff += 3
-        
-        # Load Damping Factor (D) - Beban ikut turun konsumsinya saat frekuensi turun
-        D = 1.5
-        damping_p = D * ((freq - F_NOM) / F_NOM)
-
+        # ── 4. FREKUENSI SISTEM (swing equation)
         if total_avail > 0:
-            # SISTEM NORMAL / TERHUBUNG: Gunakan persamaan swing
+            delta_p_pu = (total_gen - total_load_with_noise) / S_BASE
+            h_eff = sum(GEN_CFG[g]['H'] * gen_output[g] for g in GEN_ORDER if gen_online[g]) / max(total_gen, 1.0)
+            h_eff += H_VIRTUAL
+            damping_p = D_DAMPING * ((freq - F_NOM) / F_NOM)
             if h_eff > 0.1:
                 dfdt = (F_NOM / (2.0 * h_eff)) * (delta_p_pu - damping_p)
             else:
                 dfdt = (delta_p_pu - damping_p) * 2.0
-                
-            freq += dfdt * DT
-            
-            # AGC dan Recovery frekuensi sekarang sepenuhnya ditangani secara FISIKA NYATA
-            # oleh algoritma Dispatch (required_dispatch = total_load) dan Droop Control
-            # pada generator, sehingga modifikasi matematis buatan di sini telah dihapus.
-                
-            # CLAMP FREQUENCY (Realistic)
-            # Diperlebar (45-55 Hz) agar jika frekuensi anjlok ke 47 Hz, sistem proteksi 
-            # (UFR / Load Shedding) masih berkesempatan bekerja sebelum frekuensi mentok.
-            freq = max(45.0, min(55.0, freq))
-            rocof = dfdt
-            
+            # Recovery ditangani fisika (dispatch + droop). Clamp 45-55 Hz agar UFLS
+            # masih sempat bekerja sebelum frekuensi mentok.
+            freq = max(45.0, min(55.0, freq + dfdt * DT))
         else:
-            # SISTEM BLACKOUT (Semua generator trip)
-            # Generator terlepas dari jaringan, sehingga perlambatannya adalah karena gesekan mekanik
-            # turbin (Spin down / coast-down). Perlambatan meluruh secara eksponensial.
-            dfdt = - (freq / 3.0)  # Perlambatan natural turbin (time constant ~3s)
+            # BLACKOUT: turbin coast-down (time constant ~3 s)
+            dfdt = -(freq / 3.0)
             freq += dfdt * DT
             if freq < 0.1:
-                freq = 0.0
-                dfdt = 0.0
-                
-            rocof = dfdt
+                freq, dfdt = 0.0, 0.0
+        rocof = dfdt
 
-        # ─────────────────────────────────────────────
-        # 5. TULIS KE PLC
-        # ─────────────────────────────────────────────
-        # (Beban sudah ditulis secara individual di dalam loop beban di atas)
-
-        # Generator output → %MW30–%MW33 (integer MW x10 untuk presisi 1 desimal)
+        # ── 5. TULIS KE PLC
         gen_vals = [int(round(gen_output[g] * 10)) for g in GEN_ORDER]
-        client.write_registers(address=ADDR_GEN_OUT, values=gen_vals)
-
-        # Jam simulasi → %MW20–%MW21
         h_i = int(hour)
         m_i = int((hour - h_i) * 60)
-        client.write_registers(address=ADDR_CLOCK, values=[h_i, m_i])
-
-        # Frekuensi → %MW54 (× 100 agar presisi 2 desimal: 5000 = 50.00 Hz)
-        freq_int = int(round(freq * 100))
-        client.write_register(address=ADDR_FREQ, value=freq_int)
-
         s_i = int((((hour - h_i) * 60) - m_i) * 60)
-        # ─────────────────────────────────────────────
-        # 5. LOG TERMINAL
-        # ─────────────────────────────────────────────
+        client.write_registers(address=ADDR_LOADS, values=load_regs)     # %MW0-11
+        client.write_registers(address=ADDR_CLOCK, values=[h_i, m_i])    # %MW20-21
+        client.write_registers(address=ADDR_GEN_OUT, values=gen_vals)    # %MW30-33
+        client.write_register(address=ADDR_FREQ, value=int(round(freq * 100)))  # %MW54
+
+        # ── 6. LOG TERMINAL
         ov_str = f" | OV:{override_ch}" if override_ch else ""
-        total_gen_modbus = sum(gen_vals)
         print(
             f"[{h_i:02d}:{m_i:02d}:{s_i:02d}] "
-            f"LOAD:{total_load_modbus_int / 10.0:.1f}MW | "
-            f"GEN:{total_gen_modbus / 10.0:.1f}MW "
-            f"(PLTA:{gen_output['PLTA']:.1f} "
-            f"PLTS:{gen_output['PLTS']:.1f} "
-            f"PLTGU:{gen_output['PLTGU']:.1f} "
-            f"PLTB:{gen_output['PLTB']:.1f}) | "
+            f"LOAD:{sum(load_regs) / 10.0:.1f}MW | "
+            f"GEN:{sum(gen_vals) / 10.0:.1f}MW "
+            f"(PLTA:{gen_output['PLTA']:.1f} PLTS:{gen_output['PLTS']:.1f} "
+            f"PLTGU:{gen_output['PLTGU']:.1f} PLTB:{gen_output['PLTB']:.1f}) | "
             f"f={freq:.3f}Hz RoCoF={rocof:+.3f}Hz/s{ov_str}"
         )
 
@@ -371,7 +249,4 @@ while True:
             pass
 
     time.sleep(DT)
-    # Kecepatan Simulasi (12x): 5 detik di dunia nyata = 1 menit di simulasi
-    # sim_time dalam jam (1 jam = 3600 detik).
-    # Kenaikan per siklus = (DT * TIME_SPEED_FACTOR) / 3600.0 = DT / 300.0
-    sim_time += (DT * TIME_SPEED_FACTOR) / 3600.0
+    sim_time += (DT * TIME_SPEED_FACTOR) / 3600.0   # 12x: 5 s nyata = 1 menit simulasi
