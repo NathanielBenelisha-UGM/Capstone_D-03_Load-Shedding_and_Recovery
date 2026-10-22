@@ -2,12 +2,12 @@ import time
 import random
 import math
 import os
-from pymodbus.client import ModbusTcpClient
+from plc_modbus import M241Client as ModbusTcpClient
 
 # =========================================================
 # KONFIGURASI PLC
 # =========================================================
-plc_ip = os.getenv('PLC_IP', '192.168.100.195')
+plc_ip = os.getenv('PLC_IP', '192.168.100.200')
 plc_port = int(os.getenv('PLC_PORT', 502))
 client = ModbusTcpClient(plc_ip, port=plc_port)
 client.connect()
@@ -51,9 +51,9 @@ GEN_CFG = {
     'PLTA': {
         'type': 'hydro',
         'rated': 75.0, 'min': 5.0,
-        'H': 5.0,
+        'H': 5.0,       
         'droop': 0.05,
-        'ramp': 10.0,  # Dinaikkan: hydro governor bisa ramp cepat saat emergency
+        'ramp': 5.0,   
         'mw_addr': 30,
     },
     'PLTS': {
@@ -69,15 +69,15 @@ GEN_CFG = {
         'rated': 75.0, 'min': 15.0,
         'H': 4.0,       # Sedang
         'droop': 0.04,
-        'ramp': 8.0,   # Dinaikkan: CCGT gas turbine section ramp cepat saat frekuensi deviasi besar
+        'ramp': 3.0,    
         'mw_addr': 32,
     },
     'PLTB': {
         'type': 'wind',
         'rated': 25.0, 'min': 0.0,
-        'H': 0.7,       # DFIG inertia
+        'H': 1.0,       # DFIG inertia
         'droop': 0.04,
-        'ramp': 3.0,    
+        'ramp': 2.0,    
         'mw_addr': 33,
     },
 }
@@ -110,8 +110,10 @@ def get_solar_factor(hour):
     return max(0.0, peak * cloud)
 
 # =========================================================
-# INISIALISASI STATE
+# INISIALISASI STATE & KECEPATAN WAKTU
 # =========================================================
+# TIME_SPEED_FACTOR: 12.0 = 12x (5 detik dunia nyata = 1 menit simulasi)
+TIME_SPEED_FACTOR = 12.0
 sim_time = 19.0
 init_pct = get_load_pct(sim_time % 24)
 current_loads = [max(1.0, float(m * init_pct)) for m in max_vals]
@@ -287,8 +289,9 @@ while True:
         h_weighted = sum(GEN_CFG[g]['H'] * gen_output[g] for g in GEN_ORDER if gen_online[g])
         h_eff = h_weighted / max(total_gen, 1.0)
         
-        # Penambahan Virtual Inertia untuk menstabilkan simulasi
-        h_eff += 2.0 
+        # Penambahan Virtual Inertia (BESS Grid-Forming Synthetic Inertia Support)
+        # Menjaga RoCoF tetap aman sehingga frekuensi nadir > 49.50 Hz saat gangguan kontingensi ganda
+        h_eff += 3
         
         # Load Damping Factor (D) - Beban ikut turun konsumsinya saat frekuensi turun
         D = 1.5
@@ -368,8 +371,7 @@ while True:
             pass
 
     time.sleep(DT)
-    # 5 detik di dunia nyata = 1 menit di simulasi
-    # sim_time dalam jam, maka 1 menit = 1/60 jam.
-    # Karena loop berjalan setiap DT detik, dalam 5 detik ada 5/DT siklus.
-    # Kenaikan per siklus = (1/60) / (5/DT) = DT / 300.0
-    sim_time += DT / 60.0
+    # Kecepatan Simulasi (12x): 5 detik di dunia nyata = 1 menit di simulasi
+    # sim_time dalam jam (1 jam = 3600 detik).
+    # Kenaikan per siklus = (DT * TIME_SPEED_FACTOR) / 3600.0 = DT / 300.0
+    sim_time += (DT * TIME_SPEED_FACTOR) / 3600.0
