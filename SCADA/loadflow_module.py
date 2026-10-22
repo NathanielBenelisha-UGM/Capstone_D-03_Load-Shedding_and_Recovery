@@ -6,39 +6,87 @@ import cvxpy as cp
 import numpy as np
 import itertools
 
-def solve_milp_shedding(deficit, live_loads, current_tripped=set(), must_shed_loads=None):
+MILP_PRIORITY_WEIGHTS = {2: 1, 3: 10, 4: 100}
+
+def solve_milp_shedding(deficit, live_loads, current_tripped=set(), freq_hz=None, must_shed_loads=None, droop_tolerance=None):
+    import pulp
+    import time
+    start_time = time.perf_counter()
+    
     prob = pulp.LpProblem("LoadShedding", pulp.LpMinimize)
+    
     shed_vars = {}
     for l in live_loads:
         shed_vars[l['name']] = pulp.LpVariable(f"shed_{l['name']}", cat='Binary')
         
-    prob += pulp.lpSum([l['mw'] * shed_vars[l['name']] for l in live_loads]) >= deficit
+    # Droop Tolerance (Kompromi governor & spinning reserve):
+    # Untuk defisit > 10 MW, toleransi 5% (min 1.0 MW, max 3.0 MW) dapat diserap
+    # oleh governor droop generator online sehingga tidak memotong beban diskrit berlebih.
+    if droop_tolerance is None:
+        droop_tol = min(3.0, max(1.0, deficit * 0.05)) if deficit > 10.0 else 0.0
+    else:
+        droop_tol = float(droop_tolerance)
+    effective_deficit = max(0.0, deficit - droop_tol)
+
+    # Constraint: Total daya yang dilepas harus >= effective_deficit
+    prob += pulp.lpSum([l['mw'] * shed_vars[l['name']] for l in live_loads]) >= effective_deficit
     
-    MILP_PRIORITY_WEIGHTS = {2: 1, 3: 10, 4: 100}
+    # Objective: Minimize cost of shedding
     objective = []
     for l in live_loads:
-        weight = MILP_PRIORITY_WEIGHTS.get(l.get('priority', 2), 1)
+        prio_level = l.get('priority', 2)
+        weight = MILP_PRIORITY_WEIGHTS.get(prio_level, 1)
+        
         if l['name'] in current_tripped:
-            weight = weight * 0.90
+            weight = weight * 0.90 
             
-        # Penalti tambahan untuk Augmentasi-2
         if must_shed_loads and l['name'] in must_shed_loads:
-            weight = weight * 0.1 # Prioritaskan diputus (biaya sangat murah)
-            prob += shed_vars[l['name']] >= 1 # Memaksa diputus jika memungkinkan
+            weight = weight * 0.1 
+            prob += shed_vars[l['name']] >= 1 
             
         objective.append(weight * shed_vars[l['name']])
         
     prob += pulp.lpSum(objective)
+
     solver = pulp.PULP_CBC_CMD(msg=0)
     prob.solve(solver)
     
-    status = pulp.LpStatus[prob.status]
+    end_time = time.perf_counter()
+    exec_time = end_time - start_time
+    
+    status   = pulp.LpStatus[prob.status]
     shed_set = set()
+    total_shed = 0
+    
     if status == 'Optimal':
         for load in live_loads:
             if pulp.value(shed_vars[load['name']]) > 0.5:
                 shed_set.add(load['name'])
+                total_shed += load['mw']
+                
+        # Pretty Print untuk UFLS Trigger Asli
+        if freq_hz is not None and len(shed_set) > 0 and shed_set != current_tripped:
+            print("\n=============================================================")
+            print("[MILP SOLVER] EMERGENCY UFLS TRIGGERED!")
+            print(f"System Frequency: {freq_hz:.2f} Hz")
+            print(f"Power Deficit   : {deficit:.1f} MW (Target Efektif: {effective_deficit:.1f} MW, Droop Tol: {droop_tol:.1f} MW)")
+            print("-------------------------------------------------------------")
+            print("Executing MILP Optimization (CBC Solver)...")
+            print(f"Optimization Status : {status}")
+            print(f"Solving Time        : {exec_time:.3f} seconds\n")
+            print("[ACTION REQUIRED] Shedding the following loads:")
+            
+            prio_map = {2: 'Non-Essential', 3: 'Essential', 4: 'Critical'}
+            for load in live_loads:
+                if load['name'] in shed_set:
+                    ptype = prio_map.get(load.get('priority', 2), 'Unknown')
+                    print(f"  - {load['name']} ({ptype}) : {load['mw']} MW")
+            
+            print(f"Total Power Shed      : {total_shed:.1f} MW")
+            print("=============================================================\n")
+
     return shed_set, status
+
 
 def create_network():
     net = pp.create_empty_network()
@@ -73,8 +121,8 @@ def create_network():
     # Memberikan safety margin pasca-shedding di kisaran ~85-88% (tidak mepet 100%)
     line_length = 30.0
     pp.create_line_from_parameters(net, b_150_1, b_150_2, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.50, name="Line_1")
-    pp.create_line_from_parameters(net, b_150_1, b_150_3, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.55, name="Line_1-1")
-    pp.create_line_from_parameters(net, b_150_2, b_150_4, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.55, name="Line_1-2")
+    pp.create_line_from_parameters(net, b_150_1, b_150_3, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.65, name="Line_1-1")
+    pp.create_line_from_parameters(net, b_150_2, b_150_4, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.65, name="Line_1-2")
     pp.create_line_from_parameters(net, b_150_3, b_150_4, length_km=line_length, r_ohm_per_km=0.06, x_ohm_per_km=0.30, c_nf_per_km=10., max_i_ka=0.38, name="Line_2")
 
     # Generators — AVR diset 1.01 pu untuk profil tegangan alami & realistis

@@ -249,7 +249,7 @@ function applyHeatmapToSLD(d, scadaData) {
     function colorizeHeatmap(id, loading, isBusbar = false, customColor = null) {
         let color = customColor || '#00ffaa'; // Green default
         let isIsolated = false;
-        
+
         if (!customColor) {
             if (loading === null || loading === undefined) {
                 color = '#475569'; // Gray / Offline
@@ -268,7 +268,7 @@ function applyHeatmapToSLD(d, scadaData) {
             if (child.getAttribute('stroke') && child.getAttribute('stroke') !== 'none') child.setAttribute('stroke', color);
             if (child.tagName === 'polygon' && child.getAttribute('fill') !== 'none') child.setAttribute('fill', color);
             child.style.transition = 'all 0.3s ease';
-            
+
             if (isIsolated) {
                 child.style.filter = 'none';
                 if (!isBusbar) child.style.strokeWidth = '1px';
@@ -301,7 +301,7 @@ function applyHeatmapToSLD(d, scadaData) {
             let svgName = "Tranformator";
             if (t.name === "Trafo 1") svgName = "Tranformator_1";
             if (t.name === "Trafo 2") svgName = "Tranformator_2";
-            
+
             if (svgName === "Tranformator_1" && !isBus1Active) return;
             if (svgName === "Tranformator_2" && !isBus2Active) return;
 
@@ -312,10 +312,10 @@ function applyHeatmapToSLD(d, scadaData) {
     if (d.buses) {
         d.buses.forEach(b => {
             let busName = b.name || b.index;
-            
+
             if (busName.includes('66kV-1') && !isBus1Active) return;
             if (busName.includes('66kV-2') && !isBus2Active) return;
-            
+
             let color = '#00ffaa'; // Normal (0.95 - 1.05 pu)
             if (b.vm_pu === null || b.vm_pu === undefined) {
                 color = '#475569'; // Offline / Terisolir
@@ -675,8 +675,8 @@ function updateSLD(data) {
 
     // Transmission lines — cek status individual dari data.lines
     const lineGroupMap = {
-        'Line_1.ElmLne':   'Line_1',
-        'Line_2.ElmLne':   'Line_2',
+        'Line_1.ElmLne': 'Line_1',
+        'Line_2.ElmLne': 'Line_2',
         'Line 1-2.ElmLne': 'Line_1-2',
         'Line_1-1.ElmLne': 'Line_1-1'
     };
@@ -810,13 +810,13 @@ function updateLines(data) {
     if (!tbody) return;
 
     let html = '';
-    
+
     // Convert object to array of entries to iterate
     Object.entries(data.lines).forEach(([line_name, status]) => {
         const color = status === 'ONLINE' ? 'var(--primary-blue)' : 'var(--text-muted)';
         const btnAction = status === 'ONLINE' ? 'OFF' : 'ON';
         const btnClass = status === 'ONLINE' ? 'btn danger' : 'btn';
-        
+
         let desc = 'Transmission Line';
         if (line_name === 'Line_1') desc = 'SS1 (150kV) to SS2 (150kV)';
         else if (line_name === 'Line_1-1') desc = 'SS1 (150kV) to SS3 (150kV)';
@@ -843,7 +843,7 @@ function toggleLine(lineName, action) {
         alert("Hanya Admin yang dapat memutus/menyambung saluran transmisi.");
         return;
     }
-    
+
     if (confirm(`Apakah Anda yakin ingin melakukan ${action} pada saluran ${lineName}?`)) {
         socket.emit('toggle_line', { name: lineName, action: action });
     }
@@ -1133,7 +1133,7 @@ function toggleGen(name, action) {
         alert("Hanya Admin yang dapat memutus/menyambung pembangkit.");
         return;
     }
-    
+
     if (confirm(`Apakah Anda yakin ingin melakukan ${action} pada pembangkit ${name}?`)) {
         socket.emit('gen_control', { name, action });
     }
