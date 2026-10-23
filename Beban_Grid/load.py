@@ -70,7 +70,7 @@ S_BASE = sum(GEN_CFG[g]['rated'] for g in GEN_ORDER)  # Total kapasitas (MVA)
 D_DAMPING = 1.5      # Load damping factor
 H_VIRTUAL = 2.5        # Virtual inertia BESS grid-forming (jaga nadir > 49.50 Hz saat kontingensi ganda)
 DT = 0.1             # Siklus 10x per detik
-TIME_SPEED_FACTOR = 2.4   #25 detik dunia nyata = 1 menit simulasi
+TIME_SPEED_FACTOR = 6.0    # 6.0x: 10 detik dunia nyata = 1 menit simulasi
 
 
 # =========================================================
@@ -160,9 +160,9 @@ while True:
                 max_step = max_vals[i] * 0.01
                 current_loads[i] += max(-max_step, min(max_step, diff))
 
-                # Noise dinamis hanya jika sudah dekat target
+                # Noise dinamis mengayun halus per siklus (rentang fluktuasi ±5%)
                 if abs(diff) < max_vals[i] * 0.05:
-                    load_noise_factors[i] += random.uniform(-0.01, 0.01)
+                    load_noise_factors[i] += random.uniform(-0.002, 0.002)
                     load_noise_factors[i] = max(-0.05, min(0.05, load_noise_factors[i]))
                     noise = load_noise_factors[i] * max_vals[i]
                 else:
@@ -249,4 +249,4 @@ while True:
             pass
 
     time.sleep(DT)
-    sim_time += (DT * TIME_SPEED_FACTOR) / 3600.0   # 12x: 5 s nyata = 1 menit simulasi
+    sim_time += (DT * TIME_SPEED_FACTOR) / 3600.0   # 6.0x: 10 s nyata = 1 menit simulasi
