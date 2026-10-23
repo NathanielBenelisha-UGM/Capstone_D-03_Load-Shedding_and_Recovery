@@ -128,6 +128,104 @@ app.contingency_matrix  = {}
 app.contingency_key     = None
 app.contingency_counter = CONTINGENCY_REFRESH
 
+# =========================================================
+# PENGUKURAN WAKTU SHEDDING (trip generator -> feedback PLC)
+# =========================================================
+# t_cmd    : perintah TRIP generator dari HMI diterima app.py
+# t_detect : app.py membaca status generator OFFLINE dari PLC (ditulis load.py)
+# t_trip   : perintah lepas beban hasil MILP selesai dikirim ke PLC
+# t_fb     : bit READ_LOAD ladder PLC sudah sesuai perintah (dipolling tiap ~5 ms)
+# Satu gangguan bisa punya beberapa TAHAP pelepasan (mis. N-2: tahap 1 defisit,
+# tahap 2 UFLS). Setiap tahap dicatat sebagai satu baris di shedding_timing.csv.
+TIMING_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shedding_timing.csv')
+TIMING_EVENT_WINDOW_S = 5.0     # gangguan dianggap selesai bila 5 s tanpa tahap/trip baru
+gen_cmd_time     = {}           # generator -> waktu perintah TRIP dari HMI
+shed_event       = None         # gangguan yang sedang diukur
+last_cmd_shed    = set()        # perintah trip beban terakhir yang dikirim ke PLC
+timing_log_queue = []           # pesan hasil untuk log HMI
+prev_gen_online  = None
+
+
+def timing_on_gen_offline(names):
+    """Dipanggil saat generator terbaca OFFLINE: mulai / perluas gangguan."""
+    global shed_event
+    now = time.perf_counter()
+    if shed_event is None or now - shed_event['t_last'] > TIMING_EVENT_WINDOW_S:
+        shed_event = {'gens': [], 't_cmd': None, 't_detect': now, 't_last': now, 'stages': 0,
+                      'wall': time.strftime('%Y-%m-%d %H:%M:%S')}
+    for name in names:
+        if name not in shed_event['gens']:
+            shed_event['gens'].append(name)
+        t_cmd = gen_cmd_time.pop(name, None)
+        if t_cmd is not None and (shed_event['t_cmd'] is None or t_cmd < shed_event['t_cmd']):
+            shed_event['t_cmd'] = t_cmd
+    shed_event['t_last'] = now
+
+
+def timing_on_breaker_command(target_shed_set):
+    """Dipanggil setiap perintah trip beban dikirim; tahap baru bila ada beban tambahan dilepas."""
+    global last_cmd_shed
+    newly_shed = set(target_shed_set) - last_cmd_shed
+    last_cmd_shed = set(target_shed_set)
+    event = shed_event
+    if not newly_shed or event is None or time.perf_counter() - event['t_last'] > TIMING_EVENT_WINDOW_S:
+        return
+    event['stages'] += 1
+    stage = {'n': event['stages'], 't_trip': time.perf_counter(), 'shed': set(target_shed_set)}
+    event['t_last'] = stage['t_trip']
+    threading.Thread(target=_wait_plc_feedback, args=(event, stage), daemon=True).start()
+
+
+def _feedback_matches(fb_bits, expected_shed):
+    for name, idx in FEEDBACK_INDEX.items():
+        if bool(fb_bits[idx]) == (name in expected_shed):   # READ_LOAD=1 berarti beban ON
+            return False
+    return bool(fb_bits[CRITICAL_GROUP_INDEX]) == (not any(n in expected_shed for n in CRITICAL_GROUP))
+
+
+def _wait_plc_feedback(event, stage):
+    deadline = time.perf_counter() + 3.0
+    stage['t_fb'] = None
+    while time.perf_counter() < deadline:
+        with plc_lock:
+            r = client.read_coils(FEEDBACK_COIL_BASE, count=10)
+        now = time.perf_counter()
+        if not r.isError() and _feedback_matches(r.bits, stage['shed']):
+            stage['t_fb'] = now
+            break
+        time.sleep(0.005)
+    _record_stage(event, stage)
+
+
+def _record_stage(event, stage):
+    ms = lambda a, b: (b - a) * 1000.0 if a is not None and b is not None else None
+    t0 = event['t_cmd'] if event['t_cmd'] is not None else event['t_detect']
+    detect = ms(event['t_cmd'], event['t_detect']) if stage['n'] == 1 else None
+    decide = ms(event['t_detect'], stage['t_trip']) if stage['n'] == 1 else None
+    plc_fb = ms(stage['t_trip'], stage['t_fb'])
+    total = ms(t0, stage['t_fb'])
+    gens = '+'.join(event['gens'])
+    shed = ' '.join(sorted(stage['shed']))
+    fmt = lambda v: f"{v:.0f} ms" if v is not None else "-"
+    if stage['t_fb'] is None:
+        msg = f"WAKTU SHEDDING {gens} tahap {stage['n']}: feedback PLC tidak terkonfirmasi dalam 3 s (cek PLC RUN)."
+    elif stage['n'] == 1:
+        msg = (f"WAKTU SHEDDING {gens} tahap 1: deteksi {fmt(detect)} + MILP/kirim {fmt(decide)} "
+               f"+ PLC/feedback {fmt(plc_fb)} = total {fmt(total)} [{shed}]")
+    else:
+        msg = f"WAKTU SHEDDING {gens} tahap {stage['n']}: PLC/feedback {fmt(plc_fb)}, total sejak trip {fmt(total)} [{shed}]"
+    print(f"[TIMING] {msg}")
+    timing_log_queue.append(msg)
+    try:
+        new_file = not os.path.exists(TIMING_CSV)
+        with open(TIMING_CSV, 'a', encoding='utf-8') as f:
+            if new_file:
+                f.write("waktu,generator,tahap,deteksi_ms,milp_kirim_ms,plc_feedback_ms,total_ms,beban_dilepas\n")
+            vals = [f"{v:.1f}" if v is not None else "" for v in (detect, decide, plc_fb, total)]
+            f.write(",".join([event['wall'], gens, str(stage['n'])] + vals + [shed]) + "\n")
+    except Exception as e:
+        print(f"[TIMING] Gagal menulis CSV: {e}")
+
 
 # =========================================================
 # HELPER
@@ -149,6 +247,7 @@ def apply_breaker_shed_set(target_shed_set, live_loads):
     """Kirim status breaker beban ke PLC (satu batch, hanya word yang berubah)."""
     with plc_lock:
         client.write_coil_map({l['coil_write']: l['name'] in target_shed_set for l in live_loads})
+    timing_on_breaker_command(target_shed_set)
 
 
 def shed_mw_of(shed_set, live_loads):
@@ -252,7 +351,7 @@ def handle_connect():
 # BACKGROUND MONITORING
 # =========================================================
 def background_monitoring():
-    global last_live_loads
+    global last_live_loads, prev_gen_online
     print("--- Background Monitoring Dimulai ---")
     while True:
         try:
@@ -282,6 +381,12 @@ def background_monitoring():
                                      'rated': GEN_MAP[name]['rated'],
                                      'status': 'ONLINE' if is_on else 'OFFLINE'})
             total_gen = sum(gen_mw.values())
+
+            # Pengukuran waktu shedding: generator yang baru terbaca OFFLINE
+            gen_online_now = {g['name'] for g in gen_statuses if g['status'] == 'ONLINE'}
+            if prev_gen_online is not None and prev_gen_online - gen_online_now:
+                timing_on_gen_offline(sorted(prev_gen_online - gen_online_now))
+            prev_gen_online = gen_online_now
 
             # Frekuensi %MW54 & jam simulasi %MW20-21
             freq_hz = mw[ADDR_FREQ] / 100.0 if mw else 50.0
@@ -581,6 +686,9 @@ def background_monitoring():
             apply_breaker_shed_set(shed_set, live_loads)
 
             fb_msg, fb_info = evaluate_plc_feedback(load_statuses, fb_bits)
+            while timing_log_queue:
+                t_msg = timing_log_queue.pop(0)
+                fb_msg = f"{fb_msg} | {t_msg}" if fb_msg else t_msg
             if fb_msg:
                 log_msg = fb_msg if log_msg.startswith("Sistem Stabil") else f"{log_msg} | {fb_msg}"
             app.last_load_statuses = load_statuses
@@ -649,6 +757,8 @@ def handle_gen_control(data):
     """ON/OFF breaker generator (bit perintah %M50-%M53)."""
     name, action = data.get('name'), data.get('action')
     if name in GEN_MAP:
+        if action == 'OFF':
+            gen_cmd_time[name] = time.perf_counter()   # awal pengukuran waktu shedding
         with plc_lock:
             client.write_coil(GEN_MAP[name]['coil_write'], value=(action == 'OFF'))
         print(f">>> Command Web: {action} {name}")
