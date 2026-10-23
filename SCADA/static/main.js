@@ -134,7 +134,7 @@ function initFreqChart() {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { min: 48.0, max: 52.0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', stepSize: 0.2 } },
+                y: { min: 49.0, max: 51.0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', stepSize: 0.2 } },
                 x: { display: false }
             },
             plugins: { legend: { display: false } },
@@ -769,42 +769,72 @@ function updateGenerators(data) {
     const tbody = document.getElementById('gen-table-body');
     const container = document.getElementById('gen-bars-container');
 
-    let tableHtml = '';
-    let barsHtml = '';
+    if (tbody) {
+        if (!tbody.querySelector('.gen-row')) {
+            let tableHtml = '';
+            data.generators.forEach(g => {
+                const btnAction = g.status === 'ONLINE' ? 'OFF' : 'ON';
+                const btnClass = g.status === 'ONLINE' ? 'btn danger' : 'btn';
+                tableHtml += `
+                    <tr id="gen-row-${g.name}" class="gen-row">
+                        <td>${g.name} <br><small style="color:var(--text-muted)">${g.type.toUpperCase()}</small></td>
+                        <td>${g.rated} MW</td>
+                        <td class="gen-mw-val">${g.mw} MW</td>
+                        <td><span class="badge ${g.status.toLowerCase()} gen-status-val">${g.status}</span></td>
+                        <td>
+                            <button class="${btnClass}" onclick="toggleGen('${g.name}', '${btnAction}')">${btnAction}</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = tableHtml;
+        } else {
+            data.generators.forEach(g => {
+                const row = document.getElementById(`gen-row-${g.name}`);
+                if (!row) return;
 
-    data.generators.forEach(g => {
-        const pct = (g.mw / g.rated) * 100;
-        const color = g.status === 'ONLINE' ? 'var(--primary-blue)' : 'var(--text-muted)';
-        const btnAction = g.status === 'ONLINE' ? 'OFF' : 'ON';
-        const btnClass = g.status === 'ONLINE' ? 'btn danger' : 'btn';
+                const mwEl = row.querySelector('.gen-mw-val');
+                if (mwEl && mwEl.textContent !== `${g.mw} MW`) mwEl.textContent = `${g.mw} MW`;
 
-        tableHtml += `
-            <tr>
-                <td>${g.name} <br><small style="color:var(--text-muted)">${g.type.toUpperCase()}</small></td>
-                <td>${g.rated} MW</td>
-                <td>${g.mw} MW</td>
-                <td><span class="badge ${g.status.toLowerCase()}">${g.status}</span></td>
-                <td>
-                    <button class="${btnClass}" onclick="toggleGen('${g.name}', '${btnAction}')">${btnAction}</button>
-                </td>
-            </tr>
-        `;
+                const badgeEl = row.querySelector('.gen-status-val');
+                if (badgeEl && badgeEl.textContent !== g.status) {
+                    badgeEl.className = `badge ${g.status.toLowerCase()} gen-status-val`;
+                    badgeEl.textContent = g.status;
+                }
 
-        barsHtml += `
-            <div class="gen-bar-wrapper">
-                <div class="gen-bar-label">
-                    <span>${g.name} (${g.status})</span>
-                    <span>${g.mw} / ${g.rated} MW</span>
+                const btn = row.querySelector('button');
+                if (btn) {
+                    const btnAction = g.status === 'ONLINE' ? 'OFF' : 'ON';
+                    const btnClass = g.status === 'ONLINE' ? 'btn danger' : 'btn';
+                    if (btn.textContent !== btnAction) {
+                        btn.textContent = btnAction;
+                        btn.className = btnClass;
+                        btn.setAttribute('onclick', `toggleGen('${g.name}', '${btnAction}')`);
+                    }
+                }
+            });
+        }
+    }
+
+    if (container) {
+        let barsHtml = '';
+        data.generators.forEach(g => {
+            const pct = Math.min(100, Math.max(0, (g.mw / g.rated) * 100));
+            const color = g.status === 'ONLINE' ? 'var(--primary-blue)' : 'var(--text-muted)';
+            barsHtml += `
+                <div class="gen-bar-wrapper">
+                    <div class="gen-bar-label">
+                        <span>${g.name} (${g.status})</span>
+                        <span>${g.mw} / ${g.rated} MW</span>
+                    </div>
+                    <div class="gen-bar-track">
+                        <div class="gen-bar-fill" style="width: ${pct}%; background: ${color}"></div>
+                    </div>
                 </div>
-                <div class="gen-bar-track">
-                    <div class="gen-bar-fill" style="width: ${pct}%; background: ${color}"></div>
-                </div>
-            </div>
-        `;
-    });
-
-    if (tbody) tbody.innerHTML = tableHtml;
-    if (container) container.innerHTML = barsHtml;
+            `;
+        });
+        container.innerHTML = barsHtml;
+    }
 }
 
 function updateLines(data) {
@@ -812,33 +842,52 @@ function updateLines(data) {
     const tbody = document.getElementById('line-table-body');
     if (!tbody) return;
 
-    let html = '';
+    if (!tbody.querySelector('.line-row')) {
+        let html = '';
+        Object.entries(data.lines).forEach(([line_name, status]) => {
+            const btnAction = status === 'ONLINE' ? 'OFF' : 'ON';
+            const btnClass = status === 'ONLINE' ? 'btn danger' : 'btn';
+            let desc = 'Transmission Line';
+            if (line_name === 'Line_1') desc = 'SS1 (150kV) to SS2 (150kV)';
+            else if (line_name === 'Line_1-1') desc = 'SS1 (150kV) to SS3 (150kV)';
+            else if (line_name === 'Line_1-2') desc = 'SS2 (150kV) to SS4 (150kV)';
+            else if (line_name === 'Line_2') desc = 'SS3 (150kV) to SS4 (150kV)';
 
-    // Convert object to array of entries to iterate
-    Object.entries(data.lines).forEach(([line_name, status]) => {
-        const color = status === 'ONLINE' ? 'var(--primary-blue)' : 'var(--text-muted)';
-        const btnAction = status === 'ONLINE' ? 'OFF' : 'ON';
-        const btnClass = status === 'ONLINE' ? 'btn danger' : 'btn';
+            html += `
+                <tr id="line-row-${line_name}" class="line-row">
+                    <td style="font-weight:bold;">${line_name}</td>
+                    <td style="color:var(--text-muted); font-size: 0.9em;">${desc}</td>
+                    <td><span class="badge ${status.toLowerCase()} line-status-val">${status}</span></td>
+                    <td>
+                        <button class="${btnClass}" onclick="toggleLine('${line_name}', '${btnAction}')">${btnAction}</button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } else {
+        Object.entries(data.lines).forEach(([line_name, status]) => {
+            const row = document.getElementById(`line-row-${line_name}`);
+            if (!row) return;
 
-        let desc = 'Transmission Line';
-        if (line_name === 'Line_1') desc = 'SS1 (150kV) to SS2 (150kV)';
-        else if (line_name === 'Line_1-1') desc = 'SS1 (150kV) to SS3 (150kV)';
-        else if (line_name === 'Line_1-2') desc = 'SS2 (150kV) to SS4 (150kV)';
-        else if (line_name === 'Line_2') desc = 'SS3 (150kV) to SS4 (150kV)';
+            const badgeEl = row.querySelector('.line-status-val');
+            if (badgeEl && badgeEl.textContent !== status) {
+                badgeEl.className = `badge ${status.toLowerCase()} line-status-val`;
+                badgeEl.textContent = status;
+            }
 
-        html += `
-            <tr>
-                <td style="font-weight:bold;">${line_name}</td>
-                <td style="color:var(--text-muted); font-size: 0.9em;">${desc}</td>
-                <td><span class="badge ${status.toLowerCase()}">${status}</span></td>
-                <td>
-                    <button class="${btnClass}" onclick="toggleLine('${line_name}', '${btnAction}')">${btnAction}</button>
-                </td>
-            </tr>
-        `;
-    });
-
-    tbody.innerHTML = html;
+            const btn = row.querySelector('button');
+            if (btn) {
+                const btnAction = status === 'ONLINE' ? 'OFF' : 'ON';
+                const btnClass = status === 'ONLINE' ? 'btn danger' : 'btn';
+                if (btn.textContent !== btnAction) {
+                    btn.textContent = btnAction;
+                    btn.className = btnClass;
+                    btn.setAttribute('onclick', `toggleLine('${line_name}', '${btnAction}')`);
+                }
+            }
+        });
+    }
 }
 
 function toggleLine(lineName, action) {
@@ -1156,4 +1205,7 @@ function toggleGen(name, action) {
         socket.emit('gen_control', { name, action });
     }
 }
+window.toggleGen = toggleGen;
+window.toggleLine = toggleLine;
+
 

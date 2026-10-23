@@ -68,7 +68,7 @@ GEN_ORDER = ['PLTA', 'PLTS', 'PLTGU', 'PLTB']
 F_NOM  = 50.0                                         # Frekuensi nominal (Hz)
 S_BASE = sum(GEN_CFG[g]['rated'] for g in GEN_ORDER)  # Total kapasitas (MVA)
 D_DAMPING = 1.5      # Load damping factor
-H_VIRTUAL = 3        # Virtual inertia BESS grid-forming (jaga nadir > 49.50 Hz saat kontingensi ganda)
+H_VIRTUAL = 2.5        # Virtual inertia BESS grid-forming (jaga nadir > 49.50 Hz saat kontingensi ganda)
 DT = 0.1             # Siklus 10x per detik
 TIME_SPEED_FACTOR = 12.0   # 12x: 5 detik dunia nyata = 1 menit simulasi
 
