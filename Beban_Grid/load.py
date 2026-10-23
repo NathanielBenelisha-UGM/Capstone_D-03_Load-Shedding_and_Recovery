@@ -55,22 +55,26 @@ load_names = ['L101', 'L201', 'L303', 'L304', 'L305', 'L401', 'L301', 'L302', 'L
 max_vals   = [20,     20,     15,     20,     30,     30,     5,      10,     5,      10,     15,     20]
 
 # =========================================================
-# KONFIGURASI GENERATOR - Karakteristik Fisik Per Jenis
+# KONFIGURASI GENERATOR - Karakteristik Fisik Dunia Nyata
 # =========================================================
 GEN_CFG = {
-    'PLTA':  {'type': 'hydro',      'rated': 75.0, 'min': 5.0,  'H': 5.0, 'droop': 0.05, 'ramp': 5.0},
-    'PLTS':  {'type': 'solar_bess', 'rated': 25.0, 'min': 0.0,  'H': 0.5, 'droop': 0.02, 'ramp': 5.0},  # PLTS + BESS (virtual inertia)
-    'PLTGU': {'type': 'gas',        'rated': 75.0, 'min': 15.0, 'H': 4.0, 'droop': 0.04, 'ramp': 3.0},
-    'PLTB':  {'type': 'wind',       'rated': 25.0, 'min': 0.0,  'H': 1.0, 'droop': 0.04, 'ramp': 2.0},  # DFIG
+    # Hydro: min 20%, H=3.5s, droop=5%, ramp=0.20 MW/s (12 MW/menit)
+    'PLTA':  {'type': 'hydro',      'rated': 75.0, 'min': 15.0, 'H': 3.5, 'droop': 0.05, 'ramp': 0.20},
+    # Solar+BESS: min 0%, H=1.5s (VSG), droop=2% (FFR), ramp=12.5 MW/s (inverter baterai cepat)
+    'PLTS':  {'type': 'solar_bess', 'rated': 25.0, 'min': 0.0,  'H': 1.5, 'droop': 0.02, 'ramp': 12.5},
+    # CCGT: min 40%, H=4.5s, droop=4%, ramp=0.08 MW/s (4.8 MW/menit)
+    'PLTGU': {'type': 'gas',        'rated': 75.0, 'min': 30.0, 'H': 4.5, 'droop': 0.04, 'ramp': 0.08},
+    # Wind DFIG: min 1MW, H=1.5s, droop=4%, ramp=0.06 MW/s (3.6 MW/menit)
+    'PLTB':  {'type': 'wind',       'rated': 25.0, 'min': 1.0,  'H': 1.5, 'droop': 0.04, 'ramp': 0.06},
 }
 GEN_ORDER = ['PLTA', 'PLTS', 'PLTGU', 'PLTB']
 
 F_NOM  = 50.0                                         # Frekuensi nominal (Hz)
-S_BASE = sum(GEN_CFG[g]['rated'] for g in GEN_ORDER)  # Total kapasitas (MVA)
-D_DAMPING = 1.5      # Load damping factor
-H_VIRTUAL = 2.5        # Virtual inertia BESS grid-forming (jaga nadir > 49.50 Hz saat kontingensi ganda)
-DT = 0.1             # Siklus 10x per detik
-TIME_SPEED_FACTOR = 6.0    # 6.0x: 10 detik dunia nyata = 1 menit simulasi
+S_BASE = sum(GEN_CFG[g]['rated'] for g in GEN_ORDER)  # Total kapasitas (MVA) = 200 MVA
+D_DAMPING = 1.5                                       # Load damping factor
+H_VIRTUAL = 0.0                                       # Inersia BESS sudah dimodelkan di PLTS (H=1.5s)
+DT = 0.1                                              # Siklus 10x per detik (100 ms)
+TIME_SPEED_FACTOR = 1.0                               # 1.0x: Waktu nyata murni (1s nyata = 1s simulasi)
 
 
 # =========================================================
@@ -155,9 +159,9 @@ while True:
                 current_loads[i] = float(min(override[i] / 10.0, max_vals[i]))
                 final_val = current_loads[i]
             else:
-                # Soft-start menuju target profil harian
+                # Soft-start menuju target profil harian / pemulihan beban saat restorasi
                 diff = max_vals[i] * target_pct - current_loads[i]
-                max_step = max_vals[i] * 0.01
+                max_step = max_vals[i] * 0.005  # 0.5% per siklus (0.1s) = 5% per detik (pulih penuh dalam 20 detik)
                 current_loads[i] += max(-max_step, min(max_step, diff))
 
                 # Noise dinamis mengayun halus per siklus (rentang fluktuasi ±5%)
@@ -190,11 +194,10 @@ while True:
                 target += -((freq - 50.0) / 50.0) * (1.0 / cfg['droop']) * cfg['rated']
             target = max(cfg['min'], min(cfg['rated'], target))
 
-            # Ramp rate (inverter BESS/angin lebih cepat)
-            ramp_multiplier = 4.0 if cfg['type'] in ('solar_bess', 'wind') else 2.0
-            ramp_limit = cfg['ramp'] * ramp_multiplier * DT
+            # Laju perubahan daya generator (Ramp Rate MW/s)
+            ramp_limit = cfg['ramp'] * DT
             step_g = max(-ramp_limit, min(ramp_limit, target - gen_output[g]))
-            noise_g = random.uniform(-0.1, 0.1) if target > 0 else 0.0
+            noise_g = random.uniform(-0.005, 0.005) if target > 0 else 0.0
             gen_output[g] = max(cfg['min'], min(cfg['rated'], round(gen_output[g] + step_g + noise_g, 3)))
 
         total_gen = sum(gen_output.values())
@@ -249,4 +252,4 @@ while True:
             pass
 
     time.sleep(DT)
-    sim_time += (DT * TIME_SPEED_FACTOR) / 3600.0   # 6.0x: 10 s nyata = 1 menit simulasi
+    sim_time += (DT * TIME_SPEED_FACTOR) / 3600.0   # 1.0x: 1 s nyata = 1 s simulasi
