@@ -619,9 +619,9 @@ def background_monitoring():
                         log_msg = (f"RESTORASI BERTAHAP: Menstabilkan frekuensi & governor "
                                    f"({app.restore_cooldown * 0.1:.1f}s lagi, f={freq_hz:.2f}Hz, sisa {len(shed_set)} beban mati).")
 
-                    elif not (49.95 <= freq_hz <= 50.15):
+                    elif not (49.95 <= freq_hz <= 50.25):
                         app.restore_timer = 0
-                        log_msg = f"RESTORASI DITAHAN: Menunggu frekuensi stabil di 49.95–50.15 Hz (saat ini {freq_hz:.2f}Hz)."
+                        log_msg = f"RESTORASI DITAHAN: Menunggu frekuensi stabil di 49.95–50.50 Hz (saat ini {freq_hz:.2f}Hz)."
 
                     else:
                         app.restore_timer += 1

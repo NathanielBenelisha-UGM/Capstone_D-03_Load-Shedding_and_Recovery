@@ -118,6 +118,7 @@ while True:
 init_total = sum(current_loads)
 gen_output = {g: (GEN_CFG[g]['rated'] / S_BASE) * init_total for g in GEN_ORDER}
 freq = 50.0
+agc_bias = 0.0
 
 print("=" * 65)
 print("  SIMULATOR - Beban & Generator -> PLC")
@@ -161,7 +162,7 @@ while True:
             else:
                 # Soft-start menuju target profil harian / pemulihan beban saat restorasi
                 diff = max_vals[i] * target_pct - current_loads[i]
-                max_step = max_vals[i] * 0.005  # 0.5% per siklus (0.1s) = 5% per detik (pulih penuh dalam 20 detik)
+                max_step = max_vals[i] * 0.002  # 0.2% per siklus (0.1s) = 2% per detik (pulih penuh dalam 50 detik)
                 current_loads[i] += max(-max_step, min(max_step, diff))
 
                 # Noise dinamis mengayun halus per siklus (rentang fluktuasi ±5%)
@@ -183,22 +184,45 @@ while True:
         avail = {g: GEN_CFG[g]['rated'] if gen_online[g] else 0.0 for g in GEN_ORDER}
         total_avail = sum(avail[g] for g in GEN_ORDER)
 
+        # Secondary Frequency Control (AGC / Integral Action): eliminasi offset frekuensi ke 50.00 Hz
+        if total_avail > 0:
+            # Anti-windup: Hanya aktif saat frekuensi di dekat nominal (|f - 50| < 0.20 Hz)
+            if abs(50.0 - freq) < 0.20:
+                agc_bias += (50.0 - freq) * DT * 0.05
+                agc_bias = max(-5.0, min(5.0, agc_bias))
+            elif freq > 50.20 and agc_bias < 0:
+                # Saat over-frequency, pulihkan bias negatif secara perlahan
+                agc_bias = min(0.0, agc_bias + 0.1 * DT)
+            elif freq < 49.80 and agc_bias > 0:
+                agc_bias = max(0.0, agc_bias - 0.1 * DT)
+        else:
+            agc_bias = 0.0
+        adjusted_load = max(0.0, total_load + agc_bias)
+
         for g in GEN_ORDER:
             cfg = GEN_CFG[g]
             if not gen_online[g]:
                 gen_output[g] = 0.0
                 continue
-            target = (avail[g] / total_avail) * total_load
+            target = (avail[g] / total_avail) * adjusted_load
             # Primary frequency response (droop)
             if cfg['droop'] > 0:
                 target += -((freq - 50.0) / 50.0) * (1.0 / cfg['droop']) * cfg['rated']
             target = max(cfg['min'], min(cfg['rated'], target))
 
-            # Laju perubahan daya generator (Ramp Rate MW/s)
-            ramp_limit = cfg['ramp'] * DT
-            step_g = max(-ramp_limit, min(ramp_limit, target - gen_output[g]))
-            noise_g = random.uniform(-0.005, 0.005) if target > 0 else 0.0
-            gen_output[g] = max(cfg['min'], min(cfg['rated'], round(gen_output[g] + step_g + noise_g, 3)))
+            # Transisi sinkronisasi naik (ramp-up halus) dari 0 MW ke batas teknis minimum
+            if gen_output[g] < cfg['min']:
+                sync_ramp = max(cfg['ramp'], cfg['min'] / 15.0) * DT
+                gen_output[g] = min(cfg['min'], round(gen_output[g] + sync_ramp, 3))
+            else:
+                # Laju perubahan daya generator operasi normal (Ramp Rate MW/s)
+                # Penurunan daya (de-loading/runback saat over-frequency) 3x lebih cepat untuk menjaga kestabilan
+                is_deloading = (target < gen_output[g])
+                runback_mult = 3.0 if (is_deloading and freq > 50.05) else 1.0
+                ramp_limit = cfg['ramp'] * runback_mult * DT
+                step_g = max(-ramp_limit, min(ramp_limit, target - gen_output[g]))
+                noise_g = random.uniform(-0.005, 0.005) if target > 0 else 0.0
+                gen_output[g] = max(cfg['min'], min(cfg['rated'], round(gen_output[g] + step_g + noise_g, 3)))
 
         total_gen = sum(gen_output.values())
 
