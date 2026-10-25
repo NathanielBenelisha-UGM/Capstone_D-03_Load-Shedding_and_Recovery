@@ -20,6 +20,9 @@ import pandas as pd
 import pulp
 
 MILP_PRIORITY_WEIGHTS = {2: 1, 3: 10, 4: 100}
+# Tie-break: di antara solusi berbobot prioritas sama, pilih yang MW-nya paling kecil (kurangi over-shedding).
+# eps x total MW (<= 200 MW -> 0.02) jauh di bawah selisih bobot terkecil (0.1), jadi urutan prioritas tetap.
+MILP_EXCESS_EPS = 1e-4
 PRIORITY_LABEL = {2: 'Non-Essential', 3: 'Essential', 4: 'Critical'}
 
 # Nama generator di SCADA -> nama elemen di jaringan pandapower
@@ -35,7 +38,9 @@ PP_GEN_NAME = {
 # MILP LOAD SHEDDING
 # =========================================================
 def solve_milp_shedding(deficit, live_loads, current_tripped=None, freq_hz=None,
-                        must_shed_loads=None, droop_tolerance=None):
+                        must_shed_loads=None, droop_tolerance=None, keep_tripped=False, label=None):
+    """keep_tripped=True: beban yang sudah padam WAJIB tetap padam (pelepasan monoton selama gangguan).
+    label: judul banner log (penyebab shedding), default 'EMERGENCY UFLS TRIGGERED!'."""
     current_tripped = current_tripped or set()
     start_time = time.perf_counter()
 
@@ -61,10 +66,12 @@ def solve_milp_shedding(deficit, live_loads, current_tripped=None, freq_hz=None,
         weight = MILP_PRIORITY_WEIGHTS.get(l.get('priority', 2), 1)
         if l['name'] in current_tripped:
             weight = weight * 0.90          # anti-osilasi: pertahankan beban yang sudah padam
+            if keep_tripped:
+                prob += shed_vars[l['name']] >= 1
         if must_shed_loads and l['name'] in must_shed_loads:
             weight = weight * 0.1
             prob += shed_vars[l['name']] >= 1
-        objective.append(weight * shed_vars[l['name']])
+        objective.append((weight + MILP_EXCESS_EPS * l['mw']) * shed_vars[l['name']])
     prob += pulp.lpSum(objective)
 
     prob.solve(pulp.PULP_CBC_CMD(msg=0))
@@ -79,9 +86,12 @@ def solve_milp_shedding(deficit, live_loads, current_tripped=None, freq_hz=None,
         if freq_hz is not None and shed_set and shed_set != current_tripped:
             total_shed = sum(l['mw'] for l in live_loads if l['name'] in shed_set)
             print("\n=============================================================")
-            print("[MILP SOLVER] EMERGENCY UFLS TRIGGERED!")
+            print(f"[MILP SOLVER] {label or 'EMERGENCY UFLS TRIGGERED!'}")
             print(f"System Frequency: {freq_hz:.2f} Hz")
-            print(f"Power Deficit   : {deficit:.1f} MW (Target Efektif: {effective_deficit:.1f} MW, Droop Tol: {droop_tol:.1f} MW)")
+            if droop_tolerance == 0:
+                print(f"Target Shedding : {effective_deficit:.1f} MW (toleransi droop sudah diperhitungkan di [TARGET SHED])")
+            else:
+                print(f"Power Deficit   : {deficit:.1f} MW (Target Efektif: {effective_deficit:.1f} MW, Droop Tol: {droop_tol:.1f} MW)")
             print("-------------------------------------------------------------")
             print("Executing MILP Optimization (CBC Solver)...")
             print(f"Optimization Status : {status}")
@@ -458,6 +468,7 @@ def solve_socp_fallback(gen_statuses, live_loads, current_tripped=None, line_sta
             val = P_shed[k].value
             if val is not None and (val * 100.0) > (l_dict['mw'] * 0.5):  # kontinyu -> diskrit
                 shed_set.add(l_dict['name'])
+        shed_set |= set(current_tripped or ())   # monoton: beban yang sudah padam tidak dinyalakan
     return shed_set, prob.status
 
 

@@ -17,6 +17,7 @@ Variabel lingkungan:
 """
 import os
 from pymodbus.client import ModbusTcpClient as _BaseClient
+from pymodbus.exceptions import ConnectionException, ModbusIOException
 
 UNIT_ID = int(os.getenv("PLC_UNIT_ID", 255))
 COIL_BASE_MW = int(os.getenv("PLC_COIL_BASE_MW", 10000))
@@ -38,6 +39,17 @@ def _word_bit(n):
 
 class M241Client(_BaseClient):
     """ModbusTcpClient dengan emulasi coil %M di atas %MW (untuk M241)."""
+
+    # ---- koneksi ---------------------------------------------------------
+    def execute(self, no_response_expected, request):
+        """Transaksi gagal (PLC restart, Wi-Fi putus, timeout) -> socket ditutup.
+        Tanpa ini connect() pymodbus terus mengembalikan True untuk socket yang
+        sudah mati, sehingga klien tidak pernah tersambung ulang."""
+        try:
+            return super().execute(no_response_expected, request)
+        except (ConnectionException, ModbusIOException, OSError):
+            self.close()
+            raise
 
     # ---- bit %M ("coil") ------------------------------------------------
     def read_coils(self, address, count=1, **kwargs):
@@ -101,3 +113,10 @@ class M241Client(_BaseClient):
     def write_registers(self, address, values, **kwargs):
         kwargs.setdefault("slave", UNIT_ID)
         return super().write_registers(address=address, values=values, **kwargs)
+
+    def readwrite_registers(self, read_address, read_count, write_address, values, **kwargs):
+        """FC23: tulis `values` mulai write_address lalu baca read_count register mulai
+        read_address, dalam SATU transaksi (didukung server Modbus M241)."""
+        kwargs.setdefault("slave", UNIT_ID)
+        return super().readwrite_registers(read_address=read_address, read_count=read_count,
+                                           write_address=write_address, values=values, **kwargs)

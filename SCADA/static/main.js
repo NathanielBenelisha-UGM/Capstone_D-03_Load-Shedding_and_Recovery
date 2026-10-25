@@ -143,86 +143,6 @@ function initFreqChart() {
     });
 }
 
-// --- SVG SLD LOADING & PAN/ZOOM ---
-function loadSVG() {
-    fetch('/static/SLD.svg').then(res => res.text()).then(svgText => {
-        const sldContainer = document.getElementById('sld-container');
-        if (sldContainer) sldContainer.innerHTML = svgText;
-
-        initPanZoom('sld-container');
-    });
-}
-
-function initPanZoom(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const svg = container.querySelector('svg');
-    if (!svg) return;
-
-    let isDragging = false;
-    let startX, startY;
-
-    // Check if we already have transform data attached
-    if (!container.dataset.scale) {
-        container.dataset.scale = 1;
-        container.dataset.translateX = 0;
-        container.dataset.translateY = 0;
-    }
-
-    container.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        startX = e.clientX - parseFloat(container.dataset.translateX);
-        startY = e.clientY - parseFloat(container.dataset.translateY);
-        container.style.cursor = 'grabbing';
-    });
-
-    window.addEventListener('mouseup', () => {
-        isDragging = false;
-        container.style.cursor = 'grab';
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        e.preventDefault();
-        container.dataset.translateX = e.clientX - startX;
-        container.dataset.translateY = e.clientY - startY;
-        applyTransform(container);
-    });
-
-    container.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        let scale = parseFloat(container.dataset.scale);
-        scale = Math.max(0.5, Math.min(3, scale + delta));
-        container.dataset.scale = scale;
-        applyTransform(container);
-    });
-}
-
-function applyTransform(container) {
-    const svg = container.querySelector('svg');
-    if (svg) {
-        svg.style.transform = `translate(${container.dataset.translateX}px, ${container.dataset.translateY}px) scale(${container.dataset.scale})`;
-    }
-}
-
-window.zoomSLD = function (delta) {
-    const container = document.getElementById('sld-container');
-    if (!container) return;
-    let scale = parseFloat(container.dataset.scale) + delta;
-    container.dataset.scale = Math.max(0.5, Math.min(3, scale));
-    applyTransform(container);
-};
-
-window.resetSLD = function () {
-    const container = document.getElementById('sld-container');
-    if (!container) return;
-    container.dataset.scale = 1;
-    container.dataset.translateX = 0;
-    container.dataset.translateY = 0;
-    applyTransform(container);
-};
-
 window.lastLoadflowData = null;
 
 function applyHeatmapToSLD(d, scadaData) {
@@ -339,21 +259,36 @@ function applyHeatmapToSLD(d, scadaData) {
 }
 
 // --- SOCKET CONNECTION & UPDATES ---
+const PLC_WATCHDOG_MS = 3000;
+let lastGridUpdate = 0;
+
+function setPlcStatus(ok, text) {
+    const el = document.getElementById('plc-status');
+    if (!el) return;
+    el.className = `status-pill ${ok ? 'online' : 'offline'}`;
+    el.innerHTML = `<i class="ph-fill ${ok ? 'ph-check-circle' : 'ph-warning-circle'}"></i> ${text}`;
+}
+
 function initSocket() {
     socket = io();
 
-    socket.on('connect', () => {
-        document.getElementById('plc-status').className = 'status-pill online';
-        document.getElementById('plc-status').innerHTML = '<i class="ph-fill ph-check-circle"></i> PLC ONLINE';
-    });
+    socket.on('connect', () => setPlcStatus(false, 'MENUNGGU DATA PLC'));
+    socket.on('disconnect', () => setPlcStatus(false, 'SCADA TERPUTUS'));
 
-    socket.on('disconnect', () => {
-        document.getElementById('plc-status').className = 'status-pill offline';
-        document.getElementById('plc-status').innerHTML = '<i class="ph-fill ph-warning-circle"></i> PLC OFFLINE';
+    // Watchdog: tidak ada grid_update > PLC_WATCHDOG_MS -> data PLC dianggap tidak ada
+    setInterval(() => {
+        if (socket.connected && Date.now() - lastGridUpdate > PLC_WATCHDOG_MS) setPlcStatus(false, 'PLC TIDAK ADA DATA');
+    }, 1000);
+
+    socket.on('interrupt_ack', (data) => {
+        if (data && data.message) logAlarm(`[${new Date().toLocaleTimeString('id-ID', { hour12: false })}] ${data.message}`);
     });
 
     socket.on('grid_update', (data) => {
         window.lastScadaData = data;
+        lastGridUpdate = Date.now();
+        const fbOk = !!(data.feedback && data.feedback.ok);
+        setPlcStatus(fbOk, fbOk ? 'PLC ONLINE' : 'PLC TIDAK TERBACA');
         updateOverview(data);
         updateGenerators(data);
         updateLoads(data);
@@ -704,37 +639,6 @@ function updateSLD(data) {
         let shadow = isBus2Active ? 'rgba(0,255,170,0.6)' : 'transparent';
         colorize(`New\\${id}`, color, shadow, isBus2Active);
     });
-}
-
-function updateContingency(data) {
-    const tbody = document.getElementById('contingency-body');
-    if (!tbody) return;
-
-    let html = '';
-    const genNames = ['PLTA', 'PLTS', 'PLTGU', 'PLTB'];
-
-    data.loads.forEach(l => {
-        let cells = '';
-        genNames.forEach(gName => {
-            const trippedLoads = data.contingency[gName] || [];
-            const willTrip = trippedLoads.includes(l.id);
-            if (willTrip) {
-                cells += `<td style="background: rgba(255,42,95,0.2); color: var(--danger-red); font-weight: bold;">TRIP</td>`;
-            } else {
-                cells += `<td style="color: var(--text-muted);">-</td>`;
-            }
-        });
-
-        html += `
-            <tr>
-                <td style="text-align: left; font-family: var(--font-mono); font-weight: bold;">${l.id}</td>
-                <td style="font-family: var(--font-mono);">${l.mw} MW</td>
-                ${cells}
-            </tr>
-        `;
-    });
-
-    tbody.innerHTML = html;
 }
 
 function updateOverview(data) {
@@ -1121,7 +1025,7 @@ function initOverrides() {
 
                     <!-- MW input — aktif hanya saat MANUAL -->
                     <input type="number" id="ov-${i}" value="0"
-                           min="0" max="${MAX_LOADS[i]}" disabled
+                           min="0" max="${MAX_LOADS[i]}" step="0.1" disabled
                            style="width:52px; background:rgba(0,0,0,0.3);
                                   border:1px solid var(--glass-border); border-radius:5px;
                                   color:var(--text-muted); font-family:var(--font-mono);
@@ -1149,7 +1053,7 @@ window.onToggleMode = function (i) {
         input.style.color = 'var(--text-main)';
         input.style.borderColor = '#4285f4';
         input.style.boxShadow = '0 0 0 2px rgba(66,133,244,0.2)';
-        if (parseInt(input.value) === 0) input.value = MAX_LOADS[i];
+        if (!(parseFloat(input.value) > 0)) input.value = MAX_LOADS[i];
     } else {
         wrapper.classList.remove('is-manual');
         input.disabled = true;
@@ -1169,10 +1073,9 @@ function sendOverrides() {
         const checkbox = document.getElementById(`mode-${i}`);
         const input = document.getElementById(`ov-${i}`);
         const isManual = checkbox && checkbox.checked;
-        vals.push(isManual ? (parseInt(input.value) || 0) : 0);
+        vals.push(isManual ? (parseFloat(input.value) || 0) : 0);
     }
-    socket.emit('set_load_interrupt', { loads: vals });
-    alert('✅ Sensor Override Configuration sent to PLC!');
+    socket.emit('set_load_interrupt', { loads: vals });   // konfirmasi tampil di log lewat 'interrupt_ack'
 }
 
 window.sendSinglePriority = function (loadId, rawVal) {
