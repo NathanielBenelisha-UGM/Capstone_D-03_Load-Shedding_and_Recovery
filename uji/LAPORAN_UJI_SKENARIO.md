@@ -244,6 +244,47 @@ Perkiraan dampak:
 - **Jaringan sesi ini paling buruk**: ping 11× *timeout*, 18× > 100 ms (maks 334 ms); load.py 168× `[DT]` (siklus maks 6,8 s, 17× > 1 s); app 226× `[MODBUS] LAMBAT` (maks 1,4 s). Saat siklus > 300 ms, fisika dibatasi 300 ms, sehingga waktu simulasi hilang dan dinamika di periode itu kurang akurat.
 - Kosmetik: baris `[TARGET SHED] ... tidak ditambah` juga tercetak saat generator di-ON-kan, karena perubahan daftar generator online dihitung sebagai "trip". Tidak memengaruhi keputusan.
 
+### Uji PLC asli dengan setpoint final (commit d5d3f3c, 26 Okt 2026 dini hari, 45 menit)
+
+| Kejadian | Nadir / f terendah | Catatan |
+|---|---|---|
+| N-1 PLTGU | 49,711 ✅ | FAST 69 ms, `tidak ditambah` (−2,4 MW) |
+| + PLTB 30 s kemudian (N-2 beruntun) | 49,893 ✅ | FAST 87 ms; lalu restorasi parsial dan penuh, f 49,88–50,28 |
+| Line_1-2 putus → N-1 PLTA | **49,552** ✅ (tipis) | lihat temuan 3 |
+| N-1 PLTGU | 49,706 ✅ | FAST 118 ms (`tidak ditambah`, −1,0 MW) |
+| N-2 PLTGU → PLTA (selang 1,24 s) | **49,387 ❌** | batas fisik N-2 rapat, sama seperti sebelumnya |
+| N-2 → PLTGU ON → PLTA ON | f maks **52,610 Hz** | restorasi korektif terpicu; lihat temuan 4 |
+| Fase pemulihan (6×) | 49,698–49,889 | tidak ada pembatalan penjaga; f < 49,80 hingga 18 s per fase (efek margin 0) |
+
+1. **Perbaikan 1 terbukti lagi**: semua trip yang ditangani jalur cepat mencetak `tidak ditambah`. Tidak ada over-shedding.
+2. **Peringatan sinkronisasi** muncul tepat sebelum kasus over-frekuensi (49 > 44 MW dan 64 > 45 MW).
+3. **Temuan baru — under-shedding saat feeder + generator.**
+   - Line_1-2 diputus lebih dulu, dan logika feeder melepas L401 (±28 MW).
+   - Saat PLTA trip (kehilangan 64,4 MW), L401 **ikut dihitung** sebagai bagian target shedding generator (61,4 MW). Akibatnya jalur cepat hanya melepas L303 + L305 (±40 MW) yang baru.
+   - Padahal L401 dilepas karena feeder, sebelum generator trip, sehingga tidak membantu menutup kehilangan PLTA. Kekurangan ±24 MW ditutup respons primer dan AGC: nadir 49,552 Hz, f < 49,80 selama 2,2 s.
+   - KPI masih lolos, tetapi secara aturan desain ini kurang-shedding.
+   - Catatan: supervisor dan jalur cepat bergerak hampir bersamaan, dan commit optimistis mencegah keduanya tergabung (tidak ada over-shedding).
+4. **Restorasi korektif terbukti di PLC asli**: L302 (8,2 MW) dinyalakan pada f = 52,07 Hz dengan surplus 11 MW.
+   - f di atas 50,25 Hz selama **60 s**, dibanding 90 s sebelum perbaikan.
+   - Puncak justru lebih tinggi (52,61 vs 52,16 Hz), karena surplus kali ini lebih besar: beban 45 vs 48 MW, dan PLTB 22 vs 17 MW. Lama di atas 51,5 Hz praktis sama (34 vs 30 s).
+   - Restorasi korektif baru bekerja **setelah** puncak (±35 s setelah PLTA ON), karena aturan "satu beban per langkah" menunggu L402 (dipulihkan sesaat sebelum PLTA ON) selesai naik.
+5. **Jaringan**: lebih baik dari sesi sebelumnya, tetapi masih ada lonjakan. Ping median 1 ms, 3× *timeout*, maks 897 ms. load.py 59× `[DT]` (maks 1,48 s), app 86× `[MODBUS] LAMBAT`.
+
+**Perbaikan temuan 3 (disetujui Niel, belum diuji di PLC asli):** beban yang dilepas logika feeder/topologi kini ditandai (`app.feeder_shed`). MW-nya ditambahkan ke komponen generator target shedding, baik di supervisor maupun di tabel jalur cepat, dan penanda dikosongkan saat feeder kembali. Uji logika terisolasi (Line_1-2 putus, L401 padam, lalu PLTA 64,4 MW trip): beban baru yang dilepas jalur cepat **35,2 → 61,6 MW** (target generator 61,4 MW). Tanpa generator hilang, beban feeder tidak menambah target.
+
+### Uji PLC asli setelah perbaikan beban feeder (26 Okt 2026, 18 menit)
+
+| Kejadian | Nadir | Beban baru dilepas | Catatan |
+|---|---|---|---|
+| Line_1-2 putus → N-1 PLTA | **49,792** ✅ (sebelumnya 49,552) | L201 + L304 + L305 | target 86,9 MW termasuk L401 (feeder); f < 49,80 hanya 0,2 s (sebelumnya 2,2 s); FAST 91 ms |
+| Line_1-1 putus → N-1 PLTGU | **49,846** ✅ | L101 + L201 + L303 + L304 | `gen hilang 66,6 − 3,0 + beban feeder 26,4 = 90,0 MW`; supervisor dan jalur cepat memilih set yang sama (92,2 MW total), tidak ada tambahan |
+| N-1 PLTA (regresi, tanpa feeder) | 49,681 ✅ | L101 + L303 + L304 + L305 | `tidak ditambah` (−3,1 MW), perilaku sama seperti sebelumnya |
+| Fase pemulihan (3×) | 49,684 / 49,906 / 49,811 | – | tidak ada pembatalan penjaga |
+
+- Saat feeder kembali, log mencatat `[FEEDER RESTORED] ['L401'] tidak lagi dihitung sebagai beban feeder` (begitu juga L305), lalu kelebihan beban padam dipulihkan lewat restorasi parsial.
+- Peringatan sinkronisasi saat PLTGU ON (90 > 89 MW) ternyata terlalu berhati-hati: f maksimum fase itu hanya 50,149 Hz.
+- Jaringan sesi ini baik: ping median 1 ms, maks 116 ms, tanpa *timeout*; load.py hanya 3× `[DT]`.
+
 ## 5. Batasan dan catatan jujur
 
 - **Penyederhanaan penyalaan beban (disengaja, disetujui Niel).** Beban yang dipulihkan dimodelkan naik bertahap 2%/s dari nominalnya (soft-start ±50 s, maksimum ±1,1 MW per 100 ms). Di sistem nyata, menutup breaker feeder 13–27 MW pada sistem ±150 MW menimbulkan lonjakan seketika 10–18%, sering lebih besar karena *cold load pickup* (1,5–2× selama belasan detik). Lonjakan itu menghasilkan RoCoF sesaat ±0,5–1 Hz/s dan penurunan f ±0,1–0,3 Hz dalam beberapa detik pertama.
