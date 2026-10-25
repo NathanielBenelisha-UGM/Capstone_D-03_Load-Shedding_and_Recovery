@@ -237,6 +237,7 @@ arm_event = threading.Event()    # minta tabel dihitung ulang segera
 app.arm = {'table': {}, 'targets': {}, 'base_online': frozenset(), 'base_shed': frozenset(),
            'live_loads': [], 't': 0.0, 'calc_ms': 0.0}
 app.arm_inputs = None            # snapshot kondisi terbaru dari loop utama untuk thread arming
+app.feeder_shed = set()          # beban yang dilepas karena feeder/topologi (bukan karena generator hilang)
 app.arm_key    = None
 
 # =========================================================
@@ -401,6 +402,7 @@ def shed_remove(name, source='RESTORASI'):
     """Nyalakan satu beban. HANYA untuk restorasi bertahap."""
     with shed_lock:
         cmd_shed.discard(name)
+    app.feeder_shed.discard(name)
     _write_breakers(source)
 
 
@@ -467,18 +469,24 @@ def restore_headroom(gen_statuses):
     return total, ", ".join(parts)
 
 
-def shed_requirement(lost_gen_mw, demand_mw, capacity_mw):
+def shed_requirement(lost_gen_mw, demand_mw, capacity_mw, feeder_mw=0.0):
     """Target MW yang harus dilepas (sudah termasuk toleransi droop). Return: (target_MW, rincian).
 
+    Target dibandingkan dengan SEMUA beban padam, jadi:
     - by_gen      : MW generator yang hilang dikurangi toleransi droop (governor boleh menyerap
-                    sebagian defisit transien).
+                    sebagian defisit transien), DITAMBAH feeder_mw = beban yang padam karena feeder/topologi.
+                    Beban itu sudah lepas sebelum generator trip (generasi sudah turun mengikutinya), jadi tidak
+                    ikut menutup kehilangan generator.
     - by_capacity : demand - (kapasitas online - SHED_RESERVE_MW), TANPA toleransi: bila beban melebihi
                     kapasitas, generator yang tersisa sudah mentok rated dan tidak bisa menyerap apa pun.
+                    Beban feeder sah mengurangi demand, jadi tidak ditambahkan di sini.
     """
     droop_tol = min(3.0, max(1.0, lost_gen_mw * 0.05)) if lost_gen_mw > 10.0 else 0.0
-    by_gen = max(0.0, lost_gen_mw - droop_tol)
+    feeder_mw = feeder_mw if lost_gen_mw > 0 else 0.0
+    by_gen = max(0.0, lost_gen_mw - droop_tol) + feeder_mw
     by_capacity = max(0.0, demand_mw - (capacity_mw - SHED_RESERVE_MW))
-    detail = (f"gen hilang {lost_gen_mw:.1f} - toleransi {droop_tol:.1f} = {by_gen:.1f}; "
+    detail = (f"gen hilang {lost_gen_mw:.1f} - toleransi {droop_tol:.1f}"
+              f"{f' + beban feeder {feeder_mw:.1f}' if feeder_mw > 0 else ''} = {by_gen:.1f}; "
               f"kapasitas {demand_mw:.1f} - ({capacity_mw:.0f} - {SHED_RESERVE_MW:.0f}) = {by_capacity:.1f}")
     return max(by_gen, by_capacity), detail
 
@@ -947,11 +955,16 @@ def background_monitoring():
                 app.restore_timer = 0
                 app.restore_cooldown = 0
                 print("[FEEDER RESTORED] Semua feeder kembali — mode normal, restorasi penuh dimulai.")
+                if app.feeder_shed:
+                    print(f"[FEEDER RESTORED] {sorted(app.feeder_shed)} tidak lagi dihitung sebagai beban feeder.")
+                app.feeder_shed.clear()
             app.feeder_contingency = feeder_offline
             cycle_meter.mark('olah_data')
 
             # Target shedding: toleransi droop hanya untuk MW generator hilang, bukan kekurangan kapasitas
-            shed_target, shed_target_detail = shed_requirement(lost_gen_mw, potential_total_demand, available_capacity)
+            feeder_mw = shed_mw_of(app.feeder_shed & current_tripped, live_loads)
+            shed_target, shed_target_detail = shed_requirement(lost_gen_mw, potential_total_demand, available_capacity,
+                                                               feeder_mw)
             if freq_hz > 49.25:
                 app.ufls_low_since = None
 
@@ -1160,6 +1173,7 @@ def background_monitoring():
                                 gen_statuses, live_loads, current_tripped, app.line_statuses, viol_buses)
                             if shed_set_fc:
                                 shed_set = shed_set_fc
+                                app.feeder_shed |= set(shed_set_fc) - current_tripped
                                 log_msg = (f"FEEDER TRIP [{reason}]: Shedding {len(shed_set)} beban "
                                            f"({shed_mw_of(shed_set, live_loads):.0f}MW) untuk amankan tegangan & saluran.")
                                 app.shed_holdoff = SHED_HOLDOFF_CYCLES
@@ -1189,6 +1203,7 @@ def background_monitoring():
                             gen_statuses, live_loads, current_tripped, app.line_statuses, viol_buses)
                         if shed_set_targeted:
                             shed_set = shed_set_targeted
+                            app.feeder_shed |= set(shed_set_targeted) - current_tripped
                             log_msg = (f"TOPOLOGY TRIGGER [{reason}]! Melepas {len(shed_set)} beban "
                                        f"({shed_mw_of(shed_set, live_loads):.0f}MW) untuk menyelamatkan tegangan / overload.")
                             if len(shed_set) > len(current_tripped):
@@ -1210,7 +1225,7 @@ def background_monitoring():
 
             # ── 5. Input tabel mask pre-armed (dihitung thread arming; entri N-1 juga tampil di HMI)
             app.arm_inputs = ([dict(g) for g in gen_statuses], [dict(l) for l in live_loads],
-                              dict(app.line_statuses), dict(app.gen_memory))
+                              dict(app.line_statuses), dict(app.gen_memory), feeder_mw)
             arm_key = (frozenset(g['name'] for g in online_gens), frozenset(shed_snapshot() | shed_set),
                        tuple(sorted(app.line_statuses.items())), tuple(l['priority'] for l in LOADS))
             if arm_key != app.arm_key:
@@ -1288,7 +1303,7 @@ def background_monitoring():
 # =========================================================
 # JALUR CEPAT PRE-ARMED (tabel mask MILP + trip seketika saat generator lepas)
 # =========================================================
-def build_arm_table(gen_statuses, live_loads, line_statuses, gen_memory):
+def build_arm_table(gen_statuses, live_loads, line_statuses, gen_memory, feeder_mw=0.0):
     """Tabel mask: (A,) -> beban lepas bila A trip; (A, B) -> bila B trip setelah A (B >= mask(A)).
     Target sama dengan supervisor (shed_requirement); beban yang sudah padam wajib tetap padam.
     Mask N-1 divalidasi AC (hanya menambah); mask N-2 diperiksa supervisor pasca-kejadian."""
@@ -1304,7 +1319,7 @@ def build_arm_table(gen_statuses, live_loads, line_statuses, gen_memory):
     def solve(lost_names, keep):
         lost = lost0 + sum(mem(n) for n in lost_names)
         cap = cap0 - sum(rated[n] for n in lost_names)
-        target, _ = shed_requirement(lost, demand, cap)
+        target, _ = shed_requirement(lost, demand, cap, feeder_mw)
         if shed_mw_of(keep, live_loads) >= target:
             return set(keep), target
         res, status = solve_milp_shedding(target, live_loads, keep, droop_tolerance=0, keep_tripped=True)
