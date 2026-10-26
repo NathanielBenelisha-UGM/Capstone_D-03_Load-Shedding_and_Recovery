@@ -8,6 +8,107 @@ let freqChart;
 const urlParams = new URLSearchParams(window.location.search);
 const IS_ADMIN = urlParams.get('role') === 'admin';
 
+// --- Nama tampilan beban ---
+// Hanya untuk tampilan HMI. ID asli (L101 ...) tetap dipakai PLC, MILP, log, dan CSV.
+// Beban yang tidak diisi tetap tampil sebagai ID-nya. Di SLD, nama panjang dipecah dua baris (lihat findLoadText).
+const LOAD_LABELS = {
+    L101: 'Crusher',
+    L201: 'Conveyor',
+    L301: 'Admin',
+    L302: 'Kiln',
+    L303: 'Warehouse',
+    L304: 'Electrowinning',
+    L305: 'EAF 1',
+    L401: 'EAF 2',
+    L402: 'Compre\nssor',
+    L403: 'WTP',
+    L404: 'Control',
+    L405: 'Cooling',
+};
+const loadLabel = id => LOAD_LABELS[id] || id;
+const loadName = id => loadLabel(id).replace(/-?\n/g, '');                        // tanpa pemenggalan
+const loadTag = id => (LOAD_LABELS[id] ? `${loadName(id)} (${id})` : id);         // tabel
+
+// Label beban di SLD: font sebesar mungkin sesuai ruang ke beban sebelah kanan pada baris yang sama.
+// Bila satu baris harus di bawah SLD_FONT_MIN, nama dipecah jadi dua baris (di spasi, atau di tengah
+// dengan tanda hubung) dan teks MW/Prio di bawahnya ikut turun satu baris.
+const SLD_FONT_MAX = 11;      // ukuran asli label di SLD.svg
+const SLD_FONT_MIN = 8.5;     // di bawah ini dianggap terlalu kecil -> dua baris
+const SLD_CHAR_EM = 0.65;     // lebar rata-rata satu karakter (x font-size)
+const SLD_GAP = 4;            // jarak minimum ke label beban sebelahnya
+let LOAD_SLOTS = null;        // id -> {x, y, avail}: posisi asli label dan lebar ruang yang tersedia
+
+function computeLoadSlots(svg) {
+    const ids = Object.keys(BUS_MAP);
+    const pos = {};
+    svg.querySelectorAll('text').forEach(t => {
+        const id = t.textContent.trim();
+        if (ids.includes(id) && !t.classList.contains('dynamic-data')) {
+            pos[id] = { x: parseFloat(t.getAttribute('x')) || 0, y: parseFloat(t.getAttribute('y')) || 0 };
+        }
+    });
+    const slots = {};
+    Object.entries(pos).forEach(([id, p]) => {
+        const right = Object.values(pos).filter(q => Math.abs(q.y - p.y) < 15 && q.x > p.x).map(q => q.x);
+        slots[id] = { ...p, avail: right.length ? Math.min(...right) - p.x - SLD_GAP : 120 };
+    });
+    return slots;
+}
+
+function splitLabel(label) {
+    if (label.includes('\n')) return label.split('\n', 2);          // pemenggalan manual di LOAD_LABELS
+    if (label.includes(' ')) {
+        const i = label.lastIndexOf(' ', Math.ceil(label.length / 2));
+        const k = i > 0 ? i : label.indexOf(' ');
+        return [label.slice(0, k), label.slice(k + 1)];
+    }
+    // Satu kata: penggal dekat tengah, utamakan di antara konsonan ganda (Compres-sor), lalu
+    // sesudah vokal sebelum konsonan (Ware-house, Electro-winning)
+    const vowel = c => 'aeiouAEIOU'.includes(c);
+    const mid = label.length / 2;
+    let best = Math.ceil(mid), bestScore = -1;
+    for (let k = Math.max(2, Math.floor(mid) - 2); k <= Math.min(label.length - 2, Math.ceil(mid) + 2); k++) {
+        const a = label[k - 1], b = label[k];
+        const score = (a === b && !vowel(a) ? 2 : (vowel(a) && !vowel(b) ? 1 : 0)) - Math.abs(k - mid) * 0.1;
+        if (score > bestScore) { best = k; bestScore = score; }
+    }
+    return [label.slice(0, best) + '-', label.slice(best)];
+}
+
+// Teks nama beban di SLD.svg: dicari sekali lewat ID aslinya, ditandai data-load-id, lalu diganti
+// dengan nama tampilan. Pencarian berikutnya memakai penanda itu (teksnya sudah bukan ID lagi).
+function findLoadText(svg, id) {
+    let t = svg.querySelector(`text[data-load-id="${id}"]`);
+    if (t) return t;
+    if (!LOAD_SLOTS) LOAD_SLOTS = computeLoadSlots(svg);
+    t = Array.from(svg.querySelectorAll('text')).find(x => !x.classList.contains('dynamic-data') && x.textContent.trim() === id);
+    if (t) {
+        t.setAttribute('data-load-id', id);
+        const label = loadLabel(id);
+        const avail = (LOAD_SLOTS[id] || {}).avail || 120;
+        const fit = n => Math.min(SLD_FONT_MAX, avail / (SLD_CHAR_EM * n));
+        let lines = [label];
+        let fs = fit(label.length);
+        if (fs < SLD_FONT_MIN || label.includes('\n')) {
+            lines = splitLabel(label);
+            fs = Math.max(SLD_FONT_MIN, fit(Math.max(...lines.map(l => l.length))));
+        }
+        t.setAttribute('font-size', fs.toFixed(2));
+        t.textContent = '';
+        const x = t.getAttribute('x') || 0;
+        lines.forEach((line, i) => {
+            const sp = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            sp.setAttribute('x', x);
+            sp.setAttribute('dy', i === 0 ? '0' : '1.1em');
+            sp.textContent = line;
+            t.appendChild(sp);
+        });
+        t.dataset.extraLines = String(lines.length - 1);
+        t.dataset.lineHeight = (fs * 1.1).toFixed(2);
+    }
+    return t;
+}
+
 // --- Welcome Screen Logic ---
 function promptAdmin() {
     document.getElementById('admin-modal').style.display = 'block';
@@ -491,7 +592,7 @@ function updateSLD(data) {
         // Find text element globally just in case it's not inside gMain
         let dynText = svg.querySelector(`text.dynamic-data[data-id="${l.id}"]`);
         if (!dynText) {
-            const origText = Array.from(svg.querySelectorAll('text')).find(t => !t.classList.contains('dynamic-data') && t.textContent.trim() === l.id);
+            const origText = findLoadText(svg, l.id);
             if (origText) {
                 origText.setAttribute('fill', color);
                 dynText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -499,7 +600,9 @@ function updateSLD(data) {
                 dynText.setAttribute('data-id', l.id);
                 dynText.setAttribute('x', origText.getAttribute('x') || 0);
                 let origY = parseFloat(origText.getAttribute('y') || 0);
-                dynText.setAttribute('y', origY + 12);
+                // Label dua baris -> MW/Prio turun satu baris
+                const extra = (parseInt(origText.dataset.extraLines) || 0) * (parseFloat(origText.dataset.lineHeight) || 0);
+                dynText.setAttribute('y', origY + 12 + extra);
                 dynText.setAttribute('font-size', '9');
                 dynText.setAttribute('font-weight', 'bold');
                 dynText.setAttribute('font-family', 'var(--font-mono)');
@@ -529,7 +632,7 @@ function updateSLD(data) {
             dynText.setAttribute('fill', '#fff');
         }
         // Also update original text color if it exists
-        const origText = Array.from(svg.querySelectorAll('text')).find(t => !t.classList.contains('dynamic-data') && t.textContent.trim() === l.id);
+        const origText = findLoadText(svg, l.id);
         if (origText) origText.setAttribute('fill', color);
     });
 
@@ -669,6 +772,23 @@ function updateOverview(data) {
     freqChart.update();
 }
 
+// Badge posisi panel tombol fisik (APBB-22 + relay penahan). Disembunyikan bila data panel tidak ada.
+function panelBadge(data, name) {
+    const p = data.gen_panel && data.gen_panel[name];
+    if (!p) return { cls: 'badge panel hidden gen-panel-val', txt: '', tip: '' };
+    const pos = p.sw ? 'ON' : 'OFF';
+    if (p.mismatch) {
+        return {
+            cls: 'badge panel warning gen-panel-val', txt: `PANEL ${pos} ≠`,
+            tip: `Posisi tombol fisik ${pos} tidak sesuai status generator. Tekan ${p.sw ? 'merah' : 'hijau'} untuk menyamakan.`
+        };
+    }
+    return {
+        cls: `badge panel ${p.sw ? 'online' : 'offline'} gen-panel-val`, txt: `PANEL ${pos}`,
+        tip: 'Posisi tombol fisik (relay penahan)'
+    };
+}
+
 function updateGenerators(data) {
     const tbody = document.getElementById('gen-table-body');
     const container = document.getElementById('gen-bars-container');
@@ -684,7 +804,8 @@ function updateGenerators(data) {
                         <td>${g.name} <br><small style="color:var(--text-muted)">${g.type.toUpperCase()}</small></td>
                         <td>${g.rated} MW</td>
                         <td class="gen-mw-val">${g.mw} MW</td>
-                        <td><span class="badge ${g.status.toLowerCase()} gen-status-val">${g.status}</span></td>
+                        <td><span class="badge ${g.status.toLowerCase()} gen-status-val">${g.status}</span>
+                            <span class="${panelBadge(data, g.name).cls}" title="${panelBadge(data, g.name).tip}">${panelBadge(data, g.name).txt}</span></td>
                         <td>
                             <button class="${btnClass}" onclick="toggleGen('${g.name}', '${btnAction}')">${btnAction}</button>
                         </td>
@@ -704,6 +825,16 @@ function updateGenerators(data) {
                 if (badgeEl && badgeEl.textContent !== g.status) {
                     badgeEl.className = `badge ${g.status.toLowerCase()} gen-status-val`;
                     badgeEl.textContent = g.status;
+                }
+
+                const panelEl = row.querySelector('.gen-panel-val');
+                if (panelEl) {
+                    const pb = panelBadge(data, g.name);
+                    if (panelEl.className !== pb.cls || panelEl.textContent !== pb.txt) {
+                        panelEl.className = pb.cls;
+                        panelEl.textContent = pb.txt;
+                        panelEl.title = pb.tip;
+                    }
                 }
 
                 const btn = row.querySelector('button');
@@ -838,7 +969,7 @@ function updateLoads(data) {
         // --- 1. Basic Load Monitor Table ---
         htmlLoad += `
             <tr>
-                <td>${l.id}</td>
+                <td>${loadTag(l.id)}</td>
                 <td>${l.mw} MW</td>
                 <td>${loadStatusCell(l)}</td>
             </tr>`;
@@ -877,7 +1008,7 @@ function updateLoads(data) {
             htmlBus += `
                 <tr>
                     <td style="font-weight:bold; color:var(--primary-blue)">${busName}</td>
-                    <td style="font-family:var(--font-mono)">${l.id}</td>
+                    <td style="font-family:var(--font-mono)">${loadTag(l.id)}</td>
                     ${loadPrioCell}
                     ${actualCell}
                     ${operatorCell}
@@ -966,7 +1097,7 @@ function updateContingency(data) {
 
     data.loads.forEach(load => {
         html += `<tr>`;
-        html += `<td style="text-align: left; font-weight: 500;">${load.id}</td>`;
+        html += `<td style="text-align: left; font-weight: 500;">${loadTag(load.id)}</td>`;
         html += `<td style="font-family: var(--font-mono); color: var(--text-muted);">${load.mw} MW</td>`;
 
         genNames.forEach(gen => {
@@ -1011,7 +1142,7 @@ function initOverrides() {
                         background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 8px;
                         border: 1px solid var(--glass-border);">
                 <span style="font-family:var(--font-mono); font-size:0.9rem; font-weight:bold;
-                             width:50px; color:var(--text-main);">${name}</span>
+                             min-width:50px; color:var(--text-main);" title="${name}">${loadName(name)}</span>
 
                 <div style="display:flex; gap:10px; align-items:center;">
                     <!-- Toggle Switch AUTO ↔ MANUAL -->
