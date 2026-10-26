@@ -285,6 +285,25 @@ Perkiraan dampak:
 - Peringatan sinkronisasi saat PLTGU ON (90 > 89 MW) ternyata terlalu berhati-hati: f maksimum fase itu hanya 50,149 Hz.
 - Jaringan sesi ini baik: ping median 1 ms, maks 116 ms, tanpa *timeout*; load.py hanya 3× `[DT]`.
 
+### Uji PLC asli: kaskade sampai blackout dan *black start* (26 Okt 2026, 25 menit, commit 6278368)
+
+| Waktu sim | Kejadian | f terendah – tertinggi | Catatan |
+|---|---|---|---|
+| 19:01 | N-1 PLTGU → ON | 49,700 ✅ / pemulihan 49,884–50,055 | FAST 75 ms, restorasi penuh |
+| 19:16:17 | PLTB OFF | 49,909 ✅ | FAST 108 ms (L305) |
+| 19:16:29 | + PLTGU (12 s kemudian) | 49,720 ✅ | FAST 51 ms |
+| 19:16:42 | PLTGU ON → restorasi parsial L101 | 49,963 | – |
+| 19:16:57–19:17:03 | PLTGU lagi, PLTS, lalu PLTA dalam ±6 s (**N-3 → N-4**) | 49,495 → **blackout** | Penjaga membatalkan L101 (49,56 Hz); setelah PLTA lepas tidak ada generator tersisa: semua beban dilepas (greedy), f jatuh ke 0 |
+| 19:17:03–19:17:32 | Blackout 29 s | – | – |
+| 19:17:32 | *Black start* PLTA | 46,15–**52,19** | f naik dari batas bawah model 45 Hz; restorasi korektif L301 (50,28 Hz) dan L403 (51,93 Hz); > 51,5 Hz selama 44,5 s |
+| 19:20:25 | PLTS, PLTGU, PLTB ON pada beban ±28 MW | 49,907–**52,445** | peringatan sinkronisasi (45 > 28 MW, 46 > 28 MW); korektif L302 (52,39 Hz) dan L101 (51,48 Hz), lalu restorasi normal (P4 lebih dulu) |
+
+- Kaskade N-3/N-4 di luar skenario desain (paling berat N-2). Sistem melepas semua beban dan pulih kembali setelah *black start*.
+- **Temuan A — log berulang saat blackout:** tanpa generator online, cabang UFLS menjalankan MILP setiap siklus (infeasible → greedy "lepas semua"), sehingga ±75 baris log dalam beberapa detik. Keputusannya benar, tetapi log-nya membanjiri.
+- **Temuan B — blackout dibaca sebagai "data PLC tidak sah":** validasi memakai %MW54 = 0. Saat blackout sungguhan f memang 0, padahal load.py tetap menulis jam (%MW20–21). Dampaknya kecil (tidak ada keputusan yang perlu diambil saat itu), tetapi pesannya menyesatkan.
+- **Temuan C — over-frekuensi > 51,5 Hz ±45 s setelah sinkronisasi pada beban sangat kecil:** restorasi korektif hanya satu beban per langkah dan menunggu beban sebelumnya naik penuh. Di sistem nyata, proteksi frekuensi lebih generator (±51,5–52 Hz) bisa bekerja dalam kondisi ini.
+- Jaringan baik: 9× `[MODBUS] LAMBAT`, load.py tanpa `[DT]`.
+
 ## 5. Batasan dan catatan jujur
 
 - **Penyederhanaan penyalaan beban (disengaja, disetujui Niel).** Beban yang dipulihkan dimodelkan naik bertahap 2%/s dari nominalnya (soft-start ±50 s, maksimum ±1,1 MW per 100 ms). Di sistem nyata, menutup breaker feeder 13–27 MW pada sistem ±150 MW menimbulkan lonjakan seketika 10–18%, sering lebih besar karena *cold load pickup* (1,5–2× selama belasan detik). Lonjakan itu menghasilkan RoCoF sesaat ±0,5–1 Hz/s dan penurunan f ±0,1–0,3 Hz dalam beberapa detik pertama.

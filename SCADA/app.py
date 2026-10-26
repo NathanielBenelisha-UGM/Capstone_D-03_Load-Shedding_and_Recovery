@@ -111,7 +111,14 @@ ADDR_FREQ        = 54
 MW_BLOCK_COUNT   = ADDR_FREQ + 1          # %MW0-%MW54 dibaca dalam satu transaksi
 
 # Bit %M (lewat adapter plc_modbus): status generator %M0-%M3 ... feedback %M60-%M69
-BIT_BLOCK_COUNT  = 70
+BIT_BLOCK_COUNT  = 76   # %M0-%M75: status gen, perintah trip, READ_LOAD (60-69), tombol fisik (72-75)
+
+# Panel tombol fisik generator: stasiun APBB-22 + relay penahan -> input I0-I3 -> ladder rung Gen 1-4
+# (BTN_Gen1-4 -> SW_Gen1-4 = %MX20009.0-.3 = bit %M72-75). Bit = 1 selama relay menahan (ON).
+# Hanya PERUBAHAN bit yang menjadi perintah (sama seperti klik ON/OFF generator di HMI).
+PANEL_BUTTONS_ENABLED  = os.getenv('PANEL_BUTTONS', '1') != '0'   # PANEL_BUTTONS=0 -> bit tombol diabaikan
+GEN_SWITCH_BITS        = {72: 'PLTA', 73: 'PLTS', 74: 'PLTGU', 75: 'PLTB'}
+SWITCH_MISMATCH_WARN_S = 3.0   # posisi tombol != perintah generator selama ini -> peringatan sekali di log HMI
 
 # =========================================================
 # DATA GENERATOR & BEBAN
@@ -213,6 +220,10 @@ app.restore_cooldown    = 0      # time.monotonic() akhir jeda antar penyalaan (
 app.restoring           = None   # beban terakhir yang dipulihkan & sedang naik: {'name', 'target', 't0'}
 app.restore_retry       = {}     # beban -> time.monotonic() paling awal boleh dicoba lagi (setelah dibatalkan penjaga)
 app.gen_word_seen       = (0.0, 0)   # (waktu baca, word %MW10000) dari loop utama, dipakai jalur cepat
+app.gen_switch_prev     = None       # posisi tombol fisik siklus sebelumnya {gen: bool}; None = ambil acuan
+app.gen_switch_mismatch = {}         # gen -> time.monotonic() awal posisi tombol != perintah generator
+app.gen_switch_warned   = set()      # gen yang sudah diberi peringatan untuk episode tidak-sesuai ini
+app.gen_panel           = None       # payload HMI: {gen: {'sw': bool, 'mismatch': bool}} atau None
 app.plc_data_valid      = False      # pembacaan terakhir loop utama sah (lihat background_monitoring)
 app.ufls_low_since      = None   # awal f <= 49.25 Hz (time.monotonic) untuk tahap UFLS bertunda
 app.feeder_contingency  = False
@@ -859,6 +870,7 @@ def background_monitoring():
                 if app.plc_data_valid:
                     print("[PLC DATA] Tidak sah (baca gagal / PLC baru restart, %MW54 = 0): keputusan ditahan.")
                 app.plc_data_valid = False
+                app.gen_switch_prev = None   # PLC restart / putus: posisi tombol diambil ulang sebagai acuan
                 time.sleep(0.1)
                 continue
             if not app.plc_data_valid:
@@ -867,6 +879,7 @@ def background_monitoring():
             # Word status generator %MW10000 ikut dipakai jalur cepat (menghemat satu poll)
             app.gen_word_seen = (time.perf_counter(), sum(1 << i for i in range(16) if bits[i]))
             fb_bits = bits[FEEDBACK_COIL_BASE:FEEDBACK_COIL_BASE + 10] if bits else None
+            handle_gen_switches(bits)   # di luar plc_lock (handle_gen_control mengambil plc_lock sendiri)
             cycle_meter.mark('baca_plc')
 
             # Generator: daya aktual %MW30-33 + status %M0-3
@@ -1287,6 +1300,7 @@ def background_monitoring():
                 'plc_time':    plc_time,
                 'contingency': app.contingency_matrix,
                 'feedback':    fb_info,
+                'gen_panel':   app.gen_panel,
                 'log':         f"[{time.strftime('%H:%M:%S')}] {log_msg}",
             })
             cycle_meter.mark('emit')
@@ -1515,6 +1529,60 @@ def index():
 # =========================================================
 # SOCKET - KONTROL GENERATOR & SALURAN
 # =========================================================
+def handle_gen_switches(bits):
+    """Panel tombol fisik generator (bit %M72-75 = SW_Gen1-4).
+    - Perubahan posisi tombol -> handle_gen_control (jalur yang sama dengan klik HMI: log, peringatan
+      sinkronisasi, jalur cepat, pengukuran waktu shedding).
+    - Saat start / setelah data PLC tidak sah: posisi hanya dicatat sebagai acuan, tanpa aksi.
+    - Penjaga: OFF hanya dikirim bila generator belum di-trip, ON hanya bila sedang di-trip (bit perintah
+      %M50-53 siklus ini). Mencegah perintah ganda dan gen_cmd_time basi (pengukuran waktu palsu).
+    - Relay penahan tidak bisa dilepas dari HMI (tidak ada output PLC tersisa), jadi posisi tombol bisa
+      berbeda dari perintah generator bila HMI dipakai. Bila berbeda >= SWITCH_MISMATCH_WARN_S: peringatan
+      sekali di log HMI + badge PANEL kuning."""
+    if not PANEL_BUTTONS_ENABLED:
+        app.gen_panel = None
+        return
+    now_sw = {name: bool(bits[b]) for b, name in GEN_SWITCH_BITS.items()}
+    prev = app.gen_switch_prev
+    app.gen_switch_prev = now_sw
+    if prev is None:
+        app.gen_switch_mismatch.clear()
+        app.gen_switch_warned.clear()
+    else:
+        for name in GEN_ORDER:
+            if now_sw[name] == prev[name]:
+                continue
+            action = 'ON' if now_sw[name] else 'OFF'
+            tripped = bool(bits[GEN_MAP[name]['coil_write']])
+            if (action == 'OFF') == tripped:
+                print(f"[TOMBOL FISIK] {name} {action} diabaikan (generator sudah {'OFF' if tripped else 'ON'})")
+                continue
+            print(f"[TOMBOL FISIK] {name} {action}")
+            socketio.emit('interrupt_ack', {'type': 'gen', 'message': f"TOMBOL FISIK: {name} {action}"})
+            handle_gen_control({'name': name, 'action': action})
+    # Kesesuaian posisi tombol vs perintah generator (bit %M50-53 dibaca siklus ini)
+    t = time.monotonic()
+    panel = {}
+    for name in GEN_ORDER:
+        cmd_on = not bits[GEN_MAP[name]['coil_write']]
+        mismatch = False
+        if now_sw[name] != cmd_on:
+            since = app.gen_switch_mismatch.setdefault(name, t)
+            mismatch = t - since >= SWITCH_MISMATCH_WARN_S
+            if mismatch and name not in app.gen_switch_warned:
+                app.gen_switch_warned.add(name)
+                hint = 'tekan MERAH' if now_sw[name] else 'tekan HIJAU'
+                msg = (f"PANEL: tombol {name} posisi {'ON' if now_sw[name] else 'OFF'}, generator "
+                       f"{'ON' if cmd_on else 'OFF'} -> {hint} untuk menyamakan.")
+                print(f"[TOMBOL FISIK] {msg}")
+                socketio.emit('interrupt_ack', {'type': 'gen', 'message': msg})
+        else:
+            app.gen_switch_mismatch.pop(name, None)
+            app.gen_switch_warned.discard(name)
+        panel[name] = {'sw': now_sw[name], 'mismatch': mismatch}
+    app.gen_panel = panel
+
+
 @socketio.on('gen_control')
 def handle_gen_control(data):
     """ON/OFF breaker generator (bit perintah %M50-%M53)."""
