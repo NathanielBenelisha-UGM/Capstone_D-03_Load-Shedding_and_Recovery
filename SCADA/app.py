@@ -1436,15 +1436,16 @@ def fast_trip_watch():
 # =========================================================
 # Skema konvensional: relai frekuensi bertahap dengan blok beban TETAP, disusun sekali dari prioritas default
 # dan daya nominal (bukan dari kondisi saat gangguan). Setting di bawah ILUSTRATIF (default), BUKAN setting
-# acuan utilitas: 5 tahap 49.5/49.3/49.1/48.9/48.7 Hz, tiap blok >= 10% beban nominal total (P2 lalu P3,
-# urutan daftar LOADS; P4 kritis tidak masuk UFLS), tunda relai 0.1 s, frekuensi %MW54 dibaca tiap FAST_POLL_S.
+# acuan utilitas: 5 tahap 49.0/48.8/48.6/48.4/48.2 Hz, tiap blok >= 10% beban nominal total (P2 lalu P3,
+# urutan daftar LOADS; P4 kritis tidak masuk UFLS), tunda relai 0.2 s, frekuensi %MW54 dibaca tiap FAST_POLL_S.
+# (Sebelum Nov 2026: 49.5/49.3/49.1/48.9/48.7 Hz, tunda 0.1 s; hasil uji di uji/LAPORAN_UJI_SKENARIO.md memakai setting lama.)
 # Tanpa jalur cepat, tanpa MILP/validasi AC, tanpa pelepasan karena beban lebih feeder.
 # Restorasi memakai logika yang sama dengan skema optimal (restoration_step).
 SCHEME = os.getenv('SCHEME', 'optimal').lower()
 STATIC_SCHEME = (SCHEME == 'ufls_static')
-UFLS_STATIC_STAGES_HZ = (49.5, 49.3, 49.1, 48.9, 48.7)
+UFLS_STATIC_STAGES_HZ = (49.0, 48.8, 48.6, 48.4, 48.2)
 UFLS_STATIC_BLOCK_FRAC = 0.10
-UFLS_STATIC_DELAY_S = 0.10
+UFLS_STATIC_DELAY_S = 0.20
 
 
 def build_static_blocks():
